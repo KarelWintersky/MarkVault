@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Content;
+namespace App\DTO;
 
 /**
  * Один найденный markdown-документ.

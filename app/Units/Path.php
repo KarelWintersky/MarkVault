@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Support;
+namespace App\Units;
 
 /**
  * Утилиты для работы с путями: относительные пути внутри контента и

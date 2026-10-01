@@ -3,23 +3,13 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Auth\Authenticator;
-use App\Auth\Protection;
-use App\Config\ConfigFactory;
-use App\Config\Theme;
-use App\Content\Document;
-use App\Content\DocumentScanner;
-use App\Content\DocumentSelector;
-use App\Content\NavTreeBuilder;
-use App\Content\SortRules;
-use App\Content\TitleResolver;
-use App\Http\Request;
-use App\Markdown\MarkdownRenderer;
-use App\Support\Path;
-use App\View\Layout;
-use App\View\NavRenderer;
-use App\View\Page;
-use Arris\AppConfig;
+use App\DTO\Document;
+use App\DTO\Page;
+use App\Render\Content;
+use App\Render\Markdown;
+use App\Render\Navigation;
+use App\Units\Path;
+use App\Units\Request;
 
 /**
  * Точка сборки MarkVault: читает конфиг, разбирает запрос, собирает страницу.
@@ -29,12 +19,11 @@ use Arris\AppConfig;
  */
 final class Application
 {
-    private AppConfig $config;
-    /** @var array<string,mixed> */
-    private array $settings;
-    private Theme $theme;
-    private Protection $protection;
-    private Authenticator $auth;
+    private const TEMPLATE = __DIR__ . '/template.php';
+
+    private Config $config;
+    private Content $content;
+    private Auth $auth;
     private Request $request;
 
     /**
@@ -48,12 +37,9 @@ final class Application
         ?string $configFile = null,
     ) {
         $this->request = $request ?? Request::fromGlobals();
-        $this->config = ConfigFactory::load($baseDir, $configFile);
-        $this->settings = $this->config->get('*');
-
-        $this->theme = Theme::fromConfig($this->settings);
-        $this->protection = Protection::fromConfig($this->settings);
-        $this->auth = new Authenticator($this->request, $this->protection);
+        $this->config = Config::load($baseDir, $configFile);
+        $this->content = new Content($this->config, $this->contentDir());
+        $this->auth = new Auth($this->config, $this->request);
     }
 
     /**
@@ -98,32 +84,67 @@ final class Application
 
     private function render(bool $isAuthorized, bool $savePassword): string
     {
-        $titles = TitleResolver::fromConfig($this->settings);
+        $documents = $this->content->all();
+        $current = $this->content->select($this->request->query('file'));
 
-        $scanner = new DocumentScanner($this->contentDir(), $titles, $this->hiddenNames());
-        $documents = SortRules::fromConfig($this->settings)->apply($scanner->scan());
+        [$title, $content, $breadcrumbs] = $this->buildDocumentView($current, $isAuthorized);
 
-        $current = (new DocumentSelector($this->defaultFile()))
-            ->select($documents, $this->request->query('file'));
+        $nav = new Navigation($this->auth, $this->content, $isAuthorized);
 
-        [$title, $content, $breadcrumbs] = $this->buildDocumentView($current, $titles, $isAuthorized);
-
-        return (new Layout(new NavRenderer($this->protection, $isAuthorized)))->render(new Page(
-            $this->theme,
-            $this->protection,
-            $this->stringSetting('site.title', 'Docs'),
-            $this->stringSetting('site.nav_title', 'Документы'),
+        return $this->renderTemplate(new Page(
+            $this->config,
+            $this->auth,
+            $this->config->string('site.title', 'Docs'),
+            $this->config->string('site.nav_title', 'Документы'),
             $title,
             $documents === [] ? $this->notice() : '',
             $documents !== [],
-            (new NavTreeBuilder($titles))->build($documents),
+            $nav->build($documents),
             $current,
             $content,
             $breadcrumbs,
             $isAuthorized,
             $savePassword,
             $this->auth->submittedPassword(),
-        ));
+        ), $nav);
+    }
+
+    /**
+     * Сборка страницы целиком: готовит переменные для разметки и подключает
+     * шаблон template.php. Шаблон — единственное место, где есть HTML.
+     */
+    private function renderTemplate(Page $page, Navigation $nav): string
+    {
+        $auth = $page->auth;
+        $protectionEnabled = $auth->isEnabled();
+        $isAuthorized = $page->isAuthorized;
+
+        $siteTitle = $page->siteTitle;
+        $navTitle = $page->navTitle;
+        $title = $page->title !== '' ? $page->title : $siteTitle;
+        $debugInfo = $page->notice;
+        $hasDocuments = $page->hasDocuments;
+
+        $current = $page->current;
+        $content = $page->content;
+        $breadcrumbs = $page->breadcrumbs;
+
+        $tree = $nav->render(
+            $page->tree,
+            $current !== null ? $current->relative : '',
+        );
+
+        $darkVars = $page->config->dark();
+        $lightVars = $page->config->light();
+        $defaultTheme = $page->config->defaultTheme();
+
+        $saveToLocalStorage = $page->savePasswordToStorage;
+        $submittedPassword = $page->submittedPassword;
+
+        ob_start();
+        require self::TEMPLATE;
+
+        return (string)ob_get_clean();
     }
 
     /**
@@ -131,11 +152,8 @@ final class Application
      *
      * @return array{0:string,1:string,2:array<int,array{name:string,path:string,isFile:bool}>}
      */
-    private function buildDocumentView(
-        ?Document $document,
-        TitleResolver $titles,
-        bool $isAuthorized,
-    ): array {
+    private function buildDocumentView(?Document $document, bool $isAuthorized): array
+    {
         $title = 'Docs';
         $content = '';
         $breadcrumbs = [];
@@ -144,7 +162,7 @@ final class Application
             return [$title, $content, $breadcrumbs];
         }
 
-        if ($this->protection->protects($document->relative) && !$isAuthorized) {
+        if ($this->auth->protects($document->relative) && !$isAuthorized) {
             return ['Файл защищён', $content, $breadcrumbs];
         }
 
@@ -153,19 +171,19 @@ final class Application
             return [$title, $content, $breadcrumbs];
         }
 
-        $renderer = new MarkdownRenderer();
+        $markdown = new Markdown();
 
         return [
-            $renderer->title($raw, $document->name),
-            $renderer->render($raw, $document->relative),
-            $this->buildBreadcrumbs($document, $titles),
+            $markdown->title($raw, $document->name),
+            $markdown->render($raw, $document->relative),
+            $this->buildBreadcrumbs($document),
         ];
     }
 
     /**
      * @return array<int,array{name:string,path:string,isFile:bool}>
      */
-    private function buildBreadcrumbs(Document $document, TitleResolver $titles): array
+    private function buildBreadcrumbs(Document $document): array
     {
         $parts = explode('/', $document->relative);
         $lastIndex = count($parts) - 1;
@@ -177,7 +195,9 @@ final class Application
             $isFile = $index === $lastIndex;
 
             $breadcrumbs[] = [
-                'name' => $isFile ? $document->name : $titles->resolve($path . '/', $part),
+                'name' => $isFile
+                    ? $document->name
+                    : $this->content->resolveTitle($path . '/', $part),
                 'path' => $path,
                 'isFile' => $isFile,
             ];
@@ -192,7 +212,7 @@ final class Application
      */
     private function contentDir(): string
     {
-        $content = $this->stringSetting('content', $this->baseDir);
+        $content = $this->config->string('content', $this->baseDir);
 
         if ($content === '') {
             return $this->baseDir;
@@ -203,27 +223,6 @@ final class Application
         }
 
         return Path::normalize($content);
-    }
-
-    private function defaultFile(): string
-    {
-        return $this->stringSetting('site.default_file', 'README.md');
-    }
-
-    /**
-     * Имена файлов и папок, которые не показываем в навигации.
-     *
-     * @return array<int,string>
-     */
-    private function hiddenNames(): array
-    {
-        $hide = $this->config->get('hide', []);
-
-        if (!is_array($hide)) {
-            return [];
-        }
-
-        return array_values(array_map(strval(...), $hide));
     }
 
     /**
@@ -237,13 +236,6 @@ final class Application
             . '⚠️ MD-файлы не найдены в ' . $dir
             . '<br>Проверь права доступа и наличие .md файлов'
             . '</div>';
-    }
-
-    private function stringSetting(string $key, string $default): string
-    {
-        $value = $this->config->get($key, $default);
-
-        return is_array($value) ? $default : (string)$value;
     }
 
     /**

@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Markdown;
+namespace App\Render;
 
-use App\Support\Path;
+use App\Units\Path;
 use Parsedown;
 
 /**
@@ -12,7 +12,7 @@ use Parsedown;
  * Ссылки на «*.md» внутри документа превращаются в «?file=…», чтобы
  * навигация работала без веб-сервера, отдающего .md как есть.
  */
-final class MarkdownRenderer
+final class Markdown
 {
     private const LINK_PATTERN = '/<a\s+href="([^"]*\.md(?:#[^"]*)?)"([^>]*)>/i';
 

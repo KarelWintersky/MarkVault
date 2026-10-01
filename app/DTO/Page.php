@@ -1,11 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace App\View;
+namespace App\DTO;
 
-use App\Auth\Protection;
-use App\Config\Theme;
-use App\Content\Document;
+use App\Auth;
+use App\Config;
 
 /**
  * Всё, что шаблон страницы должен знать о текущем запросе.
@@ -27,8 +26,8 @@ final class Page
      * @param string $submittedPassword введённый пароль (для localStorage)
      */
     public function __construct(
-        public readonly Theme $theme,
-        public readonly Protection $protection,
+        public readonly Config $config,
+        public readonly Auth $auth,
         public readonly string $siteTitle,
         public readonly string $navTitle,
         public readonly string $title,

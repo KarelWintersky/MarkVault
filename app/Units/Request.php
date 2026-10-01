@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Http;
+namespace App\Units;
 
 /**
  * Тонкая обёртка над суперглобалами: держит входные данные запроса в одном

@@ -2,8 +2,8 @@
 /**
  * Разметка страницы MarkVault.
  *
- * Шаблон: ожидает переменные, которые готовит App\View\Layout::render()
- * ($title, $navTitle, $tree, $current, $content, $breadcrumbs, $protection,
+ * Шаблон: ожидает переменные, которые готовит App\Application::renderTemplate()
+ * ($title, $navTitle, $tree, $current, $content, $breadcrumbs, $auth,
  * $protectionEnabled, $isAuthorized, $darkVars, $lightVars, $defaultTheme,
  * $hasDocuments, $saveToLocalStorage, $submittedPassword, $debugInfo).
  *
@@ -26,11 +26,11 @@
             --border: #2a2f3a;
         }
         :root {
-        <?= \App\Config\Theme::toCssVariables($darkVars) ?>
+        <?= \App\Config::toCssVariables($darkVars) ?>
             color-scheme: dark;
         }
         html[data-theme="light"] {
-        <?= \App\Config\Theme::toCssVariables($lightVars) ?>
+        <?= \App\Config::toCssVariables($lightVars) ?>
             color-scheme: light;
         }
         * { box-sizing: border-box; }
@@ -291,7 +291,7 @@
     <?php if ($protectionEnabled): ?>
         <?php if (!$isAuthorized): ?>
             <form method="post" class="auth-form" id="authFormTop">
-                <input type="password" name="password" placeholder="<?= htmlspecialchars($protection->passwordFieldPlaceholder(), ENT_QUOTES, 'UTF-8') ?>" autocomplete="current-password">
+                <input type="password" name="password" placeholder="<?= htmlspecialchars($auth->passwordFieldPlaceholder(), ENT_QUOTES, 'UTF-8') ?>" autocomplete="current-password">
                 <button type="submit">Войти</button>
             </form>
         <?php else: ?>
@@ -477,8 +477,8 @@
 <?php if ($protectionEnabled): ?>
     <div class="modal-overlay" id="authModal" hidden>
         <div class="modal">
-            <h3><?= htmlspecialchars($protection->title(), ENT_QUOTES, 'UTF-8') ?></h3>
-            <p class="modal-hint"><?= htmlspecialchars($protection->hint(), ENT_QUOTES, 'UTF-8') ?></p>
+            <h3><?= htmlspecialchars($auth->title(), ENT_QUOTES, 'UTF-8') ?></h3>
+            <p class="modal-hint"><?= htmlspecialchars($auth->hint(), ENT_QUOTES, 'UTF-8') ?></p>
             <form method="post" id="authFormModal">
                 <input type="hidden" name="redirect_file" id="redirectFile" value="">
                 <input type="password" name="password" id="modalPassword" placeholder="Пароль" autocomplete="current-password" autofocus>

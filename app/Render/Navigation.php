@@ -1,27 +1,71 @@
 <?php
 declare(strict_types=1);
 
-namespace App\View;
+namespace App\Render;
 
-use App\Auth\Protection;
-use App\Content\Document;
+use App\Auth;
+use App\DTO\Document;
 
 /**
- * Отрисовка дерева навигации в HTML.
+ * Боковая навигация: из плоского списка документов строится дерево, а дерево
+ * печатается в HTML.
+ *
+ * Форма узлов:
+ *   папка — ['_type' => 'dir', '_path' => 'guides/', '_label' => 'Руководства', '_children' => [...]]
+ *   файл  — ['_type' => 'file', '_data' => Document]
  *
  * Заблокированные файлы получают класс «locked», иконку и data-атрибуты —
  * по ним клиентский JS открывает модалку ввода пароля.
  */
-final class NavRenderer
+final class Navigation
 {
     public function __construct(
-        private readonly Protection $protection,
+        private readonly Auth $auth,
+        private readonly Content $content,
         private readonly bool $isAuthorized,
     ) {
     }
 
     /**
-     * @param array<int|string,array<string,mixed>> $tree результат NavTreeBuilder
+     * @param Document[] $documents
+     * @return array<int|string,array<string,mixed>>
+     */
+    public function build(array $documents): array
+    {
+        $tree = [];
+
+        foreach ($documents as $document) {
+            $parts = explode('/', $document->relative);
+            $lastIndex = count($parts) - 1;
+
+            $branch = &$tree;
+            $path = '';
+
+            for ($i = 0; $i < $lastIndex; $i++) {
+                $part = $parts[$i];
+                $path = $path === '' ? $part : $path . '/' . $part;
+
+                if (!isset($branch[$part])) {
+                    $branch[$part] = [
+                        '_type' => 'dir',
+                        '_path' => $path,
+                        '_label' => $this->content->resolveTitle($path . '/', $part),
+                        '_children' => [],
+                    ];
+                }
+
+                $branch = &$branch[$part]['_children'];
+            }
+
+            $branch[] = ['_type' => 'file', '_data' => $document];
+            unset($branch);
+        }
+
+        return $tree;
+    }
+
+    /**
+     * @param array<int|string,array<string,mixed>> $tree результат build()
      * @param string $currentRelative относительный путь открытого документа
      * @param int $depth уровень вложенности (2 отступа на уровень)
      */
@@ -73,7 +117,7 @@ final class NavRenderer
         $isActive = $currentRelative !== '' && $document->relative === $currentRelative;
         $activeClass = $isActive ? ' class="active"' : '';
 
-        $locked = $this->protection->protects($document->relative) && !$this->isAuthorized;
+        $locked = $this->auth->protects($document->relative) && !$this->isAuthorized;
 
         $relative = self::escape($document->relative);
         $href = '?file=' . $relative;
@@ -85,7 +129,7 @@ final class NavRenderer
         $dataAttr = $locked ? ' data-protected="1" data-file="' . $relative . '"' : '';
 
         $lockBadge = $locked
-            ? ' <span class="lock-badge" title="Защищено">' . $this->protection->lockIcon() . '</span>'
+            ? ' <span class="lock-badge" title="Защищено">' . $this->auth->lockIcon() . '</span>'
             : '';
 
         return "{$indent}<li{$liClass}><a href=\"{$href}\"{$activeClass}{$dataAttr}>{$label}{$lockBadge}</a></li>";
