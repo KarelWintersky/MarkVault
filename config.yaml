@@ -1,0 +1,40 @@
+# config.yaml
+site:
+  title: "Документы"
+  nav_title: "Документы"
+  default_file: "README.md"
+
+content: ./content
+
+# Список файлов и папок, которые не показывать в навигации
+hide:
+  - index.php
+  - vendor
+  - composer.json
+  - composer.lock
+  - .git
+  - .gitignore
+  - test.php
+  - config.yaml
+
+theme:
+  # Тема по умолчанию: dark | light
+  default: light
+
+  dark:
+    bg: "#0f1115"
+    panel: "#161920"
+    text: "#e6e8eb"
+    muted: "#9aa0a6"
+    accent: "#5b9df9"
+    code_bg: "#1e222a"
+    border: "#2a2f3a"
+
+  light:
+    bg: "#faf9f7"
+    panel: "#f2f0eb"
+    text: "#232323"
+    muted: "#6b6b6b"
+    accent: "#0366d6"
+    code_bg: "#f6f8fa"
+    border: "#e1e4e8"

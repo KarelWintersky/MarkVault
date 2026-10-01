@@ -1,26 +1,66 @@
 <?php
 declare(strict_types=1);
 
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require __DIR__ . '/vendor/autoload.php';
-} elseif (file_exists(__DIR__ . '/Parsedown.php')) {
-    require __DIR__ . '/Parsedown.php';
-} else {
-    die('Parsedown не найден. run: composer require erusev/parsedown');
-}
+require __DIR__ . '/vendor/autoload.php';
 
-$CONTENT_DIR = __DIR__;
-$DEFAULT_FILE = 'README.md';
-$HIDE_FILES = [
-    'index.php',
-    'vendor',
-    'composer.json',
-    'composer.lock',
-    '.git',
-    '.gitignore',
-    '.gitattributes',
-    'markvault.phar'
-];
+use Symfony\Component\Yaml\Yaml;
+use Symfony\Component\Yaml\Exception\ParseException;
+
+/**
+ * Загрузка конфигурации из config.yaml с дефолтами.
+ */
+function loadConfig(string $path): array {
+    $defaults = [
+        'site' => [
+            'title' => 'Docs',
+            'nav_title' => 'Документы',
+            'default_file' => 'README.md',
+        ],
+        'content'   =>  __DIR__,
+        'hide' => [
+            'index.php', 'vendor', 'composer.json', 'composer.lock',
+            '.git', '.gitignore', 'test.php', 'config.yaml',
+        ],
+        'theme' => [
+            'default' => 'dark',
+            'dark' => [
+                'bg' => '#0f1115',
+                'panel' => '#161920',
+                'text' => '#e6e8eb',
+                'muted' => '#9aa0a6',
+                'accent' => '#5b9df9',
+                'code_bg' => '#1e222a',
+                'border' => '#2a2f3a',
+            ],
+            'light' => [
+                'bg' => '#faf9f7',
+                'panel' => '#f2f0eb',
+                'text' => '#232323',
+                'muted' => '#6b6b6b',
+                'accent' => '#0366d6',
+                'code_bg' => '#f6f8fa',
+                'border' => '#e1e4e8',
+            ],
+        ],
+    ];
+
+    if (!is_file($path)) {
+        return $defaults;
+    }
+
+    try {
+        $loaded = Yaml::parseFile($path);
+    } catch (ParseException $e) {
+        // При ошибке парсинга — используем дефолты
+        return $defaults;
+    }
+
+    if (!is_array($loaded)) {
+        return $defaults;
+    }
+
+    return array_replace_recursive($defaults, $loaded);
+}
 
 /**
  * Проверяет расширение у файла
@@ -191,6 +231,47 @@ function normalizePath(string $path): string {
     return implode('/', $result);
 }
 
+/**
+ * Готовим CSS-переменные для обеих тем
+ * @param array $vars
+ * @return string
+ */
+function themeVarsToCss(array $vars): string {
+    $map = [
+        'bg'      => '--bg',
+        'panel'   => '--panel',
+        'text'    => '--text',
+        'muted'   => '--muted',
+        'accent'  => '--accent',
+        'code_bg' => '--code-bg',
+        'border'  => '--border',
+    ];
+    $out = [];
+    foreach ($map as $key => $cssVar) {
+        if (isset($vars[$key])) {
+            $out[] = "            {$cssVar}: " . htmlspecialchars((string)$vars[$key], ENT_QUOTES, 'UTF-8') . ";";
+        }
+    }
+    return implode("\n", $out);
+}
+
+# =====================================================================================================================
+$config = loadConfig(__DIR__ . '/config.yaml');
+
+$DEFAULT_FILE = (string)($config['site']['default_file'] ?? 'README.md');
+$HIDE_FILES   = (array)($config['hide'] ?? []);
+$SITE_TITLE   = (string)($config['site']['title'] ?? 'Docs');
+$NAV_TITLE    = (string)($config['site']['nav_title'] ?? 'Документы');
+$THEME_CFG    = $config['theme'] ?? [];
+$CONTENT_DIR  = $config['content'] ?? __DIR__;
+
+$darkVars  = $THEME_CFG['dark']  ?? [];
+$lightVars = $THEME_CFG['light'] ?? [];
+$defaultTheme = in_array(($THEME_CFG['default'] ?? 'dark'), ['dark', 'light'], true)
+    ? $THEME_CFG['default']
+    : 'dark';
+# =====================================================================================================================
+
 $parsedown = new Parsedown();
 $parsedown->setMarkupEscaped(false);
 $parsedown->setBreaksEnabled(true);
@@ -237,7 +318,7 @@ if (empty($files)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
+    <title><?= htmlspecialchars($title !== '' ? $title : $SITE_TITLE, ENT_QUOTES, 'UTF-8') ?></title>
     <style>
         :root {
             --bg: #0f1115;
@@ -247,6 +328,14 @@ if (empty($files)) {
             --accent: #5b9df9;
             --code-bg: #1e222a;
             --border: #2a2f3a;
+        }
+        :root {
+        <?= themeVarsToCss($darkVars) ?>
+            color-scheme: dark;
+        }
+        html[data-theme="light"] {
+        <?= themeVarsToCss($lightVars) ?>
+            color-scheme: light;
         }
         * { box-sizing: border-box; }
         body {
@@ -390,29 +479,29 @@ if (empty($files)) {
             color: var(--muted);
         }
 
-.theme-toggle {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 1000;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background 0.2s;
-}
-.theme-toggle:hover {
-    background: rgba(0,0,0,0.05);
-}
+        .theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 1000;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .theme-toggle:hover {
+            background: rgba(0,0,0,0.05);
+        }
 
     </style>
 </head>
 <body>
 <nav>
-    <h2>Документы</h2>
+    <h2><?= htmlspecialchars($NAV_TITLE, ENT_QUOTES, 'UTF-8') ?></h2>
     <ul>
         <?php if (!empty($tree)): ?>
             <?= renderNavTree($tree, $current ? $current['relative'] : '') ?>
@@ -474,47 +563,50 @@ if (empty($files)) {
 })();
 </script>
 <script>
-(function(){
-    const toggle = document.getElementById('themeToggle');
-    const darkRoot = {
-        '--bg': '#0f1115',
-        '--panel': '#161920',
-        '--text': '#e6e8eb',
-        '--muted': '#9aa0a6',
-        '--accent': '#5b9df9',
-        '--code-bg': '#1e222a',
-        '--border': '#2a2f3a',
-    };
-    const lightRoot = {
-        '--bg': '#faf9f7',
-        '--panel': '#f2f0eb',
-        '--text': '#232323',
-        '--muted': '#6b6b6b',
-        '--accent': '#0366d6',
-        '--code-bg': '#f6f8fa',
-        '--border': '#e1e4e8',
-    };
+    (function(){
+        const THEME_CONFIG = {
+            dark:  <?= json_encode($darkVars,  JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
+            light: <?= json_encode($lightVars, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
+            default: <?= json_encode($defaultTheme) ?>
+        };
 
-    function setTheme(theme) {
-        const root = document.documentElement.style;
-        const colors = theme === 'light' ? lightRoot : darkRoot;
-        for (const [key, value] of Object.entries(colors)) {
-            root.setProperty(key, value);
+        const CSS_MAP = {
+            bg: '--bg',
+            panel: '--panel',
+            text: '--text',
+            muted: '--muted',
+            accent: '--accent',
+            code_bg: '--code-bg',
+            border: '--border'
+        };
+
+        const toggle = document.getElementById('themeToggle');
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const root = document.documentElement.style;
+
+            // Сбрасываем возможные inline-значения
+            Object.values(CSS_MAP).forEach(v => root.removeProperty(v));
+
+            const vars = THEME_CONFIG[theme] || {};
+            for (const [key, value] of Object.entries(vars)) {
+                if (CSS_MAP[key]) {
+                    root.setProperty(CSS_MAP[key], value);
+                }
+            }
+            toggle.textContent = theme === 'light' ? '☀️' : '🌙';
+            localStorage.setItem('theme', theme);
         }
-        toggle.textContent = theme === 'light' ? '☀️' : '🌙';
-        localStorage.setItem('theme', theme);
-    }
 
-    const saved = localStorage.getItem('theme');
-    if (saved) {
-        setTheme(saved);
-    }
+        const saved = localStorage.getItem('theme');
+        applyTheme(saved === 'light' || saved === 'dark' ? saved : THEME_CONFIG.default);
 
-    toggle.addEventListener('click', () => {
-        const current = toggle.textContent === '🌙' ? 'dark' : 'light';
-        setTheme(current === 'dark' ? 'light' : 'dark');
-    });
-})();
+        toggle.addEventListener('click', () => {
+            const next = toggle.textContent === '🌙' ? 'light' : 'dark';
+            applyTheme(next);
+        });
+    })();
 </script>
 </body>
 </html>
