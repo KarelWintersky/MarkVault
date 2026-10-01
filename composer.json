@@ -1,0 +1,27 @@
+{
+    "name": "karelwintersky/markvault",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "karelwintersky",
+            "email": "karel@wintersky.ru"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "erusev/parsedown": "^1.8",
+        "symfony/yaml": "^7.4"
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://satisfactor.wintersky.ru"
+        },
+        { "packagist.org": false }
+    ],
+    "config": {
+        "secure-http": true
+    }
+
+}
