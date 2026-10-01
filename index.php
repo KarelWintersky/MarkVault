@@ -12,6 +12,50 @@ if (is_file(PHAR_PATH)) {
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Component\Yaml\Exception\ParseException;
 
+class MarkVault
+{
+    /**
+     * Конфиг по-умолчанию
+     * @return array
+     */
+    protected static function getDefaultConfig():array
+    {
+        return [
+            'site' => [
+                'title' => 'Docs',
+                'nav_title' => 'Документы',
+                'default_file' => '_README.md',
+            ],
+            'content'   =>  __DIR__,
+            'hide' => [
+                'index.php', 'vendor', 'composer.json', 'composer.lock',
+                '.git', '.gitignore', 'test.php', 'config.yaml',
+            ],
+            'theme' => [
+                'default' => 'dark',
+                'dark' => [
+                    'bg' => '#0f1115',
+                    'panel' => '#161920',
+                    'text' => '#e6e8eb',
+                    'muted' => '#9aa0a6',
+                    'accent' => '#5b9df9',
+                    'code_bg' => '#1e222a',
+                    'border' => '#2a2f3a',
+                ],
+                'light' => [
+                    'bg' => '#faf9f7',
+                    'panel' => '#f2f0eb',
+                    'text' => '#232323',
+                    'muted' => '#6b6b6b',
+                    'accent' => '#0366d6',
+                    'code_bg' => '#f6f8fa',
+                    'border' => '#e1e4e8',
+                ],
+            ],
+        ];
+    }
+}
+
 /**
  * Загрузка конфигурации из config.yaml с дефолтами.
  */
@@ -20,7 +64,7 @@ function loadConfig(string $path): array {
         'site' => [
             'title' => 'Docs',
             'nav_title' => 'Документы',
-            'default_file' => 'README.md',
+            'default_file' => '_README.md',
         ],
         'content'   =>  __DIR__,
         'hide' => [
@@ -160,13 +204,20 @@ function isMarkdownFile(string $path): bool {
 
 /**
  * Рекурсивный поиск файлов в каталоге
+ *
  * @param string $dir
  * @param string $basePath
  * @param array $hide
+ * @param array $titlesMap
  *
  * @return array
  */
-function scanMarkdownFilesRecursive(string $dir, string $basePath = '', array $hide = []): array {
+function scanMarkdownFilesRecursive(
+    string $dir,
+    string $basePath = '',
+    array $hide = [],
+    array $titlesMap = []
+): array {
     $files = [];
     $items = @scandir($dir);
     if ($items === false) return $files;
@@ -174,19 +225,22 @@ function scanMarkdownFilesRecursive(string $dir, string $basePath = '', array $h
     foreach ($items as $item) {
         if (in_array($item, $hide, true) || str_starts_with($item, '.')) continue;
 
-        $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
+        $fullPath     = $dir . DIRECTORY_SEPARATOR . $item;
         $relativePath = $basePath === '' ? $item : $basePath . '/' . $item;
 
         if (is_dir($fullPath)) {
-            $subFiles = scanMarkdownFilesRecursive($fullPath, $relativePath, $hide);
+            $subFiles = scanMarkdownFilesRecursive($fullPath, $relativePath, $hide, $titlesMap);
             $files = array_merge($files, $subFiles);
         } elseif (isMarkdownFile($fullPath)) {
+            $fallback = pathinfo($item, PATHINFO_FILENAME);
+            $name     = resolveTitle($relativePath, $titlesMap, $fallback);
+
             $files[] = [
-                'name' => pathinfo($item, PATHINFO_FILENAME),
-                'file' => $item,
-                'path' => $fullPath,
+                'name'     => $name,
+                'file'     => $item,
+                'path'     => $fullPath,
                 'relative' => $relativePath,
-                'mtime' => filemtime($fullPath),
+                'mtime'    => filemtime($fullPath),
             ];
         }
     }
@@ -207,7 +261,7 @@ function getRequestedFile(array $files, string $default): ?array {
     return $files[0] ?? null;
 }
 
-function buildPathHierarchy(array $files): array {
+function buildPathHierarchy(array $files, array $titlesMap = []): array {
     $tree = [];
     foreach ($files as $f) {
         $parts = explode('/', $f['relative']);
@@ -220,8 +274,9 @@ function buildPathHierarchy(array $files): array {
 
             if (!isset($current[$part])) {
                 $current[$part] = [
-                    '_type' => 'dir',
-                    '_path' => $pathSoFar,
+                    '_type'     => 'dir',
+                    '_path'     => $pathSoFar,
+                    '_label'    => resolveTitle($pathSoFar . '/', $titlesMap, $part),
                     '_children' => [],
                 ];
             }
@@ -244,7 +299,7 @@ function renderNavTree(array $tree, string $currentRelative, array $config, bool
 
     foreach ($tree as $key => $node) {
         if ($node['_type'] === 'dir') {
-            $dirName = htmlspecialchars($key, ENT_QUOTES, 'UTF-8');
+            $dirName = htmlspecialchars($node['_label'] ?? $key, ENT_QUOTES, 'UTF-8');
             $html[] = "{$indent}<li class=\"dir\">";
             $html[] = "{$indent}  <details open>";
             $html[] = "{$indent}    <summary>{$dirName}</summary>";
@@ -356,10 +411,57 @@ function themeVarsToCss(array $vars): string {
     return implode("\n", $out);
 }
 
+/**
+ * Достаёт карту названий из конфига. Ключи нормализуются
+ * (убираем ведущие слэши, выравниваем разделители).
+ */
+function getTitlesMap(array $config): array {
+    $titles = $config['titles'] ?? [];
+    if (!is_array($titles)) {
+        return [];
+    }
+
+    $map = [];
+    foreach ($titles as $path => $label) {
+        $path  = ltrim(str_replace('\\', '/', (string)$path), '/');
+        $label = trim((string)$label);
+        if ($path === '' || $label === '') {
+            continue;
+        }
+        $map[$path] = $label;
+    }
+    return $map;
+}
+
+/**
+ * Возвращает название для файла/папки.
+ *
+ * @param string $relative Относительный путь: "guides/install.md" или "guides/"
+ * @param array  $titlesMap Результат getTitlesMap()
+ * @param string $fallback Имя по умолчанию (для файла — без .md, для папки — имя папки)
+ */
+function resolveTitle(string $relative, array $titlesMap, string $fallback): string {
+    $relative = ltrim(str_replace('\\', '/', $relative), '/');
+
+    // 1. Точное совпадение (файл или папка со слэшем)
+    if (isset($titlesMap[$relative])) {
+        return $titlesMap[$relative];
+    }
+
+    // 2. Для файла пробуем вариант с завершающим слэшем (на случай, если
+    //    в конфиге папка записана как "guides" без слэша, — но это уже покрыто ниже)
+    // 3. Для папки — добавляем слэш и ищем
+    if (isset($titlesMap[$relative . '/'])) {
+        return $titlesMap[$relative . '/'];
+    }
+
+    return $fallback;
+}
+
 # =====================================================================================================================
 $config = loadConfig(__DIR__ . '/config.yaml');
 
-$DEFAULT_FILE = (string)($config['site']['default_file'] ?? 'README.md');
+$DEFAULT_FILE = (string)($config['site']['default_file'] ?? '_README.md');
 $HIDE_FILES   = (array)($config['hide'] ?? []);
 $SITE_TITLE   = (string)($config['site']['title'] ?? 'Docs');
 $NAV_TITLE    = (string)($config['site']['nav_title'] ?? 'Документы');
@@ -433,9 +535,10 @@ $parsedown = new Parsedown();
 $parsedown->setMarkupEscaped(false);
 $parsedown->setBreaksEnabled(true);
 
-$files = scanMarkdownFilesRecursive($CONTENT_DIR, '', $HIDE_FILES);
+$TITLES_MAP = getTitlesMap($config);
+$files = scanMarkdownFilesRecursive($CONTENT_DIR, '', $HIDE_FILES, $TITLES_MAP);
 $current = getRequestedFile($files, $DEFAULT_FILE);
-$tree = buildPathHierarchy($files);
+$tree = buildPathHierarchy($files, $TITLES_MAP);
 
 $content = '';
 $title = 'Docs';
@@ -454,15 +557,25 @@ if ($current) {
             $content = convertInternalLinks($content, $current['relative']);
 
             $firstLine = trim(explode("\n", $raw)[0] ?? '');
-            $title = preg_match('/^#\s+(.*)/', $firstLine, $m) ? trim($m[1]) : $current['name'];
+            $title = preg_match('/^#\s+(.*)/', $firstLine, $m)
+                ? trim($m[1])
+                : $current['name'];  // ← $current['name'] уже красивое из titles
 
             $parts = explode('/', $current['relative']);
             for ($i = 0; $i < count($parts); $i++) {
                 $path = implode('/', array_slice($parts, 0, $i + 1));
+                $isFile = $i === count($parts) - 1;
+
+                if ($isFile) {
+                    $label = $current['name']; // уже красивое
+                } else {
+                    $label = resolveTitle($path . '/', $TITLES_MAP, $parts[$i]);
+                }
+
                 $breadcrumbs[] = [
-                    'name'   => $parts[$i],
+                    'name'   => $label,
                     'path'   => $path,
-                    'isFile' => $i === count($parts) - 1,
+                    'isFile' => $isFile,
                 ];
             }
         }

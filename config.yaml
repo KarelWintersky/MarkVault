@@ -2,9 +2,41 @@
 site:
   title: "Документы"
   nav_title: "Документы"
-  default_file: "README.md"
+  default_file: "_README.md"
 
 content: ./content
+
+titles:
+  # === Основной корпус (00–14) ===
+  "00-overview.md":              "Обзор"
+  "01-timeline.md":              "Хронология"
+  "02-earth-backstory.md":       "Предыстория Земли"
+  "03-planet-aurora.md":         "Планета Аврора"
+  "04-biosphere.md":             "Биосфера"
+  "05-factions.md":              "Фракции"
+
+  # === Подраздел фракций (05a–05e) ===
+  "05a-landing.md":              "Фракции: Лэндинг"
+  "05b-technograd.md":           "Фракции: Техноград"
+  "05c-syndicate.md":            "Фракции: Синдикат"
+  "05d-control.md":              "Фракции: Контроль"
+  "05e-volniki.md":              "Фракции: Вольники"
+
+  # === Продолжение корпуса (06–14) ===
+  "06-longers.md":               "Долгожители"
+  "07-society.md":               "Общество"
+  "08-economy.md":               "Экономика"
+  "09-technology.md":            "Технологии"
+  "10-religion.md":              "Религия"
+  "11-psionics-and-artifacts.md": "Странное"
+  "12-media.md":                 "Медиа"
+  "13-characters.md":            "Персонажи"
+  "14-glossary.md":              "Глоссарий"
+
+  # === Служебное ===
+  "_README.md":                   "Главная"
+  "QUESTIONS.md":                "Открытые вопросы"
+
 
 # Список файлов и папок, которые не показывать в навигации
 hide:
