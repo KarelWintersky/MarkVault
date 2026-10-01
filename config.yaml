@@ -1,8 +1,8 @@
 # config.yaml
 site:
-  title: "Документы"
+  title: "Нейроанализ Федерация: Основание"
   nav_title: "Документы"
-  default_file: "_README.md"
+  default_file: "README.md"
 
 content: ./content
 
@@ -34,9 +34,15 @@ titles:
   "14-glossary.md":              "Глоссарий"
 
   # === Служебное ===
-  "_README.md":                   "Главная"
+  "README.md":                   "Главная"
   "QUESTIONS.md":                "Открытые вопросы"
 
+sort:
+  before_all:
+    - "README.md"
+    - "00-overview.md"
+  after_all:
+    - "QUESTIONS.md"
 
 # Список файлов и папок, которые не показывать в навигации
 hide:

@@ -24,7 +24,7 @@ class MarkVault
             'site' => [
                 'title' => 'Docs',
                 'nav_title' => 'Документы',
-                'default_file' => '_README.md',
+                'default_file' => 'README.md',
             ],
             'content'   =>  __DIR__,
             'hide' => [
@@ -64,7 +64,7 @@ function loadConfig(string $path): array {
         'site' => [
             'title' => 'Docs',
             'nav_title' => 'Документы',
-            'default_file' => '_README.md',
+            'default_file' => 'README.md',
         ],
         'content'   =>  __DIR__,
         'hide' => [
@@ -135,6 +135,99 @@ function protectionEnabled(array $config): bool {
     // Приводим к строке и обрезаем пробелы — пустая строка = выключено.
     // Явно: "0" — это валидный пароль, "" и "   " — нет.
     return trim((string)$password) !== '';
+}
+
+/**
+ * Читает секцию sort и нормализует в:
+ * [
+ *   'before' => ['README.md' => 0, '00-overview.md' => 1],
+ *   'after'  => ['QUESTIONS.md' => 0, '99-changelog.md' => 1],
+ * ]
+ *
+ * Если файл встречается в обеих секциях — он остаётся в 'before'
+ * и удаляется из 'after'.
+ */
+function getSortRules(array $config): array {
+    $sort = $config['sort'] ?? [];
+    if (!is_array($sort)) {
+        return ['before' => [], 'after' => []];
+    }
+
+    $normalize = static function ($list): array {
+        if (!is_array($list)) return [];
+        $out = [];
+        $i = 0;
+        foreach ($list as $path) {
+            $path = ltrim(str_replace('\\', '/', (string)$path), '/');
+            if ($path === '') continue;
+            if (!isset($out[$path])) {
+                $out[$path] = $i++;
+            }
+        }
+        return $out;
+    };
+
+    $before = $normalize($sort['before_all'] ?? []);
+    $after  = $normalize($sort['after_all']  ?? []);
+
+    // before_all приоритетнее: удаляем пересечения из after
+    foreach (array_keys($before) as $path) {
+        unset($after[$path]);
+    }
+
+    return ['before' => $before, 'after' => $after];
+}
+
+/**
+ * Возвращает «вес» элемента для сортировки.
+ * Меньше = выше в списке.
+ *
+ * Диапазоны:
+ *   before_all:  0 … 999        (в порядке перечисления)
+ *   обычные:     1_000_000 …    (по алфавиту)
+ *   after_all:   10_000_000 …   (в порядке перечисления)
+ */
+function getSortWeight(string $relative, array $rules): array {
+    $relative = ltrim(str_replace('\\', '/', $relative), '/');
+
+    // before_all — приоритетнее
+    if (isset($rules['before'][$relative])) {
+        return [0, $rules['before'][$relative]];
+    }
+
+    // Папка: "guides/" может быть задана и как "guides"
+    if (isset($rules['before'][$relative . '/'])) {
+        return [0, $rules['before'][$relative . '/']];
+    }
+
+    if (isset($rules['after'][$relative])) {
+        return [2, $rules['after'][$relative]];
+    }
+    if (isset($rules['after'][$relative . '/'])) {
+        return [2, $rules['after'][$relative . '/']];
+    }
+
+    return [1, 0]; // обычная группа
+}
+
+function sortFilesByRules(array $files, array $rules): array {
+    usort($files, function ($a, $b) use ($rules) {
+        [$groupA, $idxA] = getSortWeight($a['relative'], $rules);
+        [$groupB, $idxB] = getSortWeight($b['relative'], $rules);
+
+        if ($groupA !== $groupB) {
+            return $groupA <=> $groupB;
+        }
+
+        // Внутри before_all/after_all — порядок как в конфиге
+        if ($groupA !== 1) {
+            return $idxA <=> $idxB;
+        }
+
+        // Внутри обычной группы — natural sort по относительному пути
+        return strnatcmp($a['relative'], $b['relative']);
+    });
+    return $files;
 }
 
 /**
@@ -245,7 +338,6 @@ function scanMarkdownFilesRecursive(
         }
     }
 
-    usort($files, fn($a, $b) => strnatcmp($a['relative'], $b['relative']));
     return $files;
 }
 
@@ -461,7 +553,7 @@ function resolveTitle(string $relative, array $titlesMap, string $fallback): str
 # =====================================================================================================================
 $config = loadConfig(__DIR__ . '/config.yaml');
 
-$DEFAULT_FILE = (string)($config['site']['default_file'] ?? '_README.md');
+$DEFAULT_FILE = (string)($config['site']['default_file'] ?? 'README.md');
 $HIDE_FILES   = (array)($config['hide'] ?? []);
 $SITE_TITLE   = (string)($config['site']['title'] ?? 'Docs');
 $NAV_TITLE    = (string)($config['site']['nav_title'] ?? 'Документы');
@@ -536,9 +628,13 @@ $parsedown->setMarkupEscaped(false);
 $parsedown->setBreaksEnabled(true);
 
 $TITLES_MAP = getTitlesMap($config);
+$SORT_RULES = getSortRules($config);
+
 $files = scanMarkdownFilesRecursive($CONTENT_DIR, '', $HIDE_FILES, $TITLES_MAP);
-$current = getRequestedFile($files, $DEFAULT_FILE);
+$files = sortFilesByRules($files, $SORT_RULES);
 $tree = buildPathHierarchy($files, $TITLES_MAP);
+
+$current = getRequestedFile($files, $DEFAULT_FILE);
 
 $content = '';
 $title = 'Docs';
