@@ -23,6 +23,7 @@ final class Navigation
         private readonly Auth $auth,
         private readonly Content $content,
         private readonly bool $isAuthorized,
+        private readonly bool $collapsed = false,
     ) {
     }
 
@@ -99,10 +100,11 @@ final class Navigation
     private function renderDirectory(array $node, string $key, string $currentRelative, string $indent, int $depth): array
     {
         $label = self::escape((string)($node['_label'] ?? $key));
+        $details = $this->collapsed ? '<details>' : '<details open>';
 
         return [
             "{$indent}<li class=\"dir\">",
-            "{$indent}  <details open>",
+            "{$indent}  {$details}",
             "{$indent}    <summary>{$label}</summary>",
             "{$indent}    <ul>",
             $this->render($node['_children'], $currentRelative, $depth + 2),

@@ -89,7 +89,7 @@ final class Application
 
         [$title, $content, $breadcrumbs] = $this->buildDocumentView($current, $isAuthorized);
 
-        $nav = new Navigation($this->auth, $this->content, $isAuthorized);
+        $nav = new Navigation($this->auth, $this->content, $isAuthorized, $this->config->navCollapsed());
 
         return $this->renderTemplate(new Page(
             $this->config,

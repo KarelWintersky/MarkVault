@@ -65,6 +65,9 @@ final class Config
                 'default_file' => 'README.md',
             ],
             'content' => $baseDir,
+            'nav' => [
+                'collapsed' => false,
+            ],
             'hide' => [
                 'index.php', 'vendor', 'composer.json', 'composer.lock',
                 '.git', '.gitignore', 'test.php', 'config.yaml',
@@ -104,6 +107,17 @@ final class Config
         $value = $this->raw->get($key, $default);
 
         return is_array($value) ? $default : (string)$value;
+    }
+
+    /**
+     * Папки в навигации свёрнуты по умолчанию.
+     *
+     * Ветка с открытым документом всё равно раскрывается — это делает
+     * клиентский JS, иначе не было бы видно, где находится текущая страница.
+     */
+    public function navCollapsed(): bool
+    {
+        return (bool)$this->get('nav.collapsed', false);
     }
 
     /**
