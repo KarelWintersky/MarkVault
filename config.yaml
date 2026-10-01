@@ -34,6 +34,7 @@ titles:
   "14-glossary.md":              "Глоссарий"
 
   # === Служебное ===
+  "Questions/":                   "Анализ дипсик"
   "README.md":                   "Главная"
   "QUESTIONS.md":                "Открытые вопросы"
 
@@ -86,8 +87,7 @@ protected:
   # Можно указывать как точный файл, так и всю папку (тогда защищены все .md внутри).
   files:
     - "06-longers.md"
-    - "private/secret.md"
-    - "internal/"
+    - "Questions/"
 
   # Метка для защищённых файлов в списке
   lock_icon: "🔒"

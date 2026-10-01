@@ -66,9 +66,9 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         xmlreader xmlwriter xsl zip \
     || echo "Some core extensions failed (non-fatal)"
 
-RUN pecl install imagick redis apcu xmlrpc || echo "Some PECL extensions failed (non-fatal)"
-RUN pecl install memcached lz4 zstd rar || echo "Some PECL extensions failed (non-fatal)"
-RUN docker-php-ext-enable imagick redis apcu xmlrpc memcached lz4 zstd rar || true
+RUN pecl install redis apcu xmlrpc || echo "Some PECL extensions failed (non-fatal)"
+RUN pecl install lz4 zstd rar || echo "Some PECL extensions failed (non-fatal)"
+RUN docker-php-ext-enable redis apcu xmlrpc lz4 zstd rar || true
 
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 

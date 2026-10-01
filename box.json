@@ -4,6 +4,7 @@
     "force-autodiscovery": true,
 
     "directories": [
+        "app",
         "vendor"
     ],
 
@@ -41,11 +42,6 @@
                 "phpunit.xml"
             ],
             "in": "vendor"
-        },
-        {
-            "name": "composer.json",
-            "in": "."
         }
-    ],
-    "dump-autoload": true
+    ]
 }
