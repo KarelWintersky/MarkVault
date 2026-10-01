@@ -63,6 +63,86 @@ function loadConfig(string $path): array {
 }
 
 /**
+ * Защита включена, если есть секция protected и в ней непустой пароль.
+ * Пустая строка, "0", пробелы, null, отсутствие ключа — выключено.
+ */
+function protectionEnabled(array $config): bool {
+    if (empty($config['protected']) || !is_array($config['protected'])) {
+        return false;
+    }
+
+    if (!array_key_exists('password', $config['protected'])) {
+        return false;
+    }
+
+    $password = $config['protected']['password'];
+
+    // Разрешаем только строку/число, всё остальное — выключено
+    if (!is_string($password) && !is_int($password) && !is_float($password)) {
+        return false;
+    }
+
+    // Приводим к строке и обрезаем пробелы — пустая строка = выключено.
+    // Явно: "0" — это валидный пароль, "" и "   " — нет.
+    return trim((string)$password) !== '';
+}
+
+/**
+ * Проверяет, защищён ли конкретный файл (по относительному пути).
+ * Поддерживает как точное совпадение файла, так и префикс папки.
+ */
+function isProtectedFile(string $relative, array $config): bool {
+    if (!protectionEnabled($config)) {
+        return false;
+    }
+
+    $files = $config['protected']['files'] ?? [];
+    if (!is_array($files) || $files === []) {
+        return false;
+    }
+
+    $relative = ltrim(str_replace('\\', '/', $relative), '/');
+
+    foreach ($files as $pattern) {
+        $pattern = ltrim(str_replace('\\', '/', (string)$pattern), '/');
+
+        if ($pattern === '') {
+            continue; // пустые элементы пропускаем
+        }
+
+        if (str_ends_with($pattern, '/')) {
+            if (str_starts_with($relative, $pattern)) {
+                return true;
+            }
+            continue;
+        }
+
+        if ($relative === $pattern) {
+            return true;
+        }
+
+        if (str_starts_with($relative, $pattern . '/')) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Проверяет корректность введённого пароля.
+ */
+function checkPassword(string $input, array $config): bool {
+    if (!protectionEnabled($config)) {
+        return true;
+    }
+
+    $expected = trim((string)$config['protected']['password']);
+
+    return hash_equals($expected, $input);
+}
+
+/**
  * Проверяет расширение у файла
  * @param string $path
  *
@@ -151,9 +231,10 @@ function buildPathHierarchy(array $files): array {
     return $tree;
 }
 
-function renderNavTree(array $tree, string $currentRelative, int $depth = 0): string {
+function renderNavTree(array $tree, string $currentRelative, array $config, bool $isAuthorized, int $depth = 0): string {
     $html = [];
     $indent = str_repeat('  ', $depth);
+    $lockIcon = (string)($config['protected']['lock_icon'] ?? '🔒');
 
     foreach ($tree as $key => $node) {
         if ($node['_type'] === 'dir') {
@@ -162,7 +243,7 @@ function renderNavTree(array $tree, string $currentRelative, int $depth = 0): st
             $html[] = "{$indent}  <details open>";
             $html[] = "{$indent}    <summary>{$dirName}</summary>";
             $html[] = "{$indent}    <ul>";
-            $html[] = renderNavTree($node['_children'], $currentRelative, $depth + 2);
+            $html[] = renderNavTree($node['_children'], $currentRelative, $config, $isAuthorized, $depth + 2);
             $html[] = "{$indent}    </ul>";
             $html[] = "{$indent}  </details>";
             $html[] = "{$indent}</li>";
@@ -170,9 +251,23 @@ function renderNavTree(array $tree, string $currentRelative, int $depth = 0): st
             $f = $node['_data'];
             $isActive = $currentRelative !== '' && $f['relative'] === $currentRelative;
             $activeClass = $isActive ? ' class="active"' : '';
+
+            $isProtected = isProtectedFile($f['relative'], $config);
+            $locked = $isProtected && !$isAuthorized;
+
             $href = '?file=' . htmlspecialchars($f['relative'], ENT_QUOTES, 'UTF-8');
             $label = htmlspecialchars($f['name'], ENT_QUOTES, 'UTF-8');
-            $html[] = "{$indent}<li><a href=\"{$href}\"{$activeClass}>{$label}</a></li>";
+
+            $liClass = $locked ? ' class="locked"' : '';
+
+            // data-protected нужен JS для перехвата клика
+            $dataAttr = $locked
+                ? ' data-protected="1" data-file="' . htmlspecialchars($f['relative'], ENT_QUOTES, 'UTF-8') . '"'
+                : '';
+
+            $lockBadge = $locked ? ' <span class="lock-badge" title="Защищено">' . $lockIcon . '</span>' : '';
+
+            $html[] = "{$indent}<li{$liClass}><a href=\"{$href}\"{$activeClass}{$dataAttr}>{$label}{$lockBadge}</a></li>";
         }
     }
 
@@ -270,6 +365,62 @@ $lightVars = $THEME_CFG['light'] ?? [];
 $defaultTheme = in_array(($THEME_CFG['default'] ?? 'dark'), ['dark', 'light'], true)
     ? $THEME_CFG['default']
     : 'dark';
+# === SECURITY ===
+
+$PROTECTED_CONFIG = $config['protected'] ?? [];
+$COOKIE_NAME = 'md_docs_auth';
+$authCookieValue = $_COOKIE[$COOKIE_NAME] ?? '';
+
+$submittedPassword = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
+    $submittedPassword = (string)$_POST['password'];
+} elseif ($authCookieValue !== '') {
+    // кука хранит сам пароль (base64), т.к. требование — plain text
+    $decoded = base64_decode($authCookieValue, true);
+    $submittedPassword = $decoded !== false ? $decoded : '';
+} elseif (!empty($_SERVER['HTTP_X_AUTH_TOKEN'])) {
+    $decoded = base64_decode((string)$_SERVER['HTTP_X_AUTH_TOKEN'], true);
+    $submittedPassword = $decoded !== false ? $decoded : '';
+}
+
+$isAuthorized = checkPassword($submittedPassword, $config);
+
+if ($isAuthorized && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['redirect_file'])) {
+    $target = (string)$_POST['redirect_file'];
+    header('Location: ?file=' . rawurlencode($target));
+    exit;
+}
+
+// Если пароль пришёл через POST и верный — сохраняем куку
+if ($isAuthorized && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
+    setcookie($COOKIE_NAME, base64_encode($submittedPassword), [
+        'expires'  => time() + 60 * 60 * 24 * 30,
+        'path'     => '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    // и в localStorage через JS-инициализацию
+    $saveToLocalStorage = true;
+} else {
+    $saveToLocalStorage = false;
+}
+
+// Если пользователь нажал "выйти"
+if (isset($_GET['logout'])) {
+    setcookie($COOKIE_NAME, '', [
+        'expires'  => time() - 3600,
+        'path'     => '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    // Оставляем маркер logged_out=1 — его поймает JS и почистит localStorage
+    $target = strtok($_SERVER['REQUEST_URI'], '?');
+    header('Location: ' . $target . '?logged_out=1');
+    exit;
+}
+
 # =====================================================================================================================
 
 $parsedown = new Parsedown();
@@ -284,23 +435,30 @@ $content = '';
 $title = 'Docs';
 $breadcrumbs = [];
 
-if ($current) {
-    $raw = file_get_contents($current['path']);
-    if ($raw !== false) {
-        $content = $parsedown->text($raw);
-        $content = convertInternalLinks($content, $current['relative']);
-        
-        $firstLine = trim(explode("\n", $raw)[0] ?? '');
-        $title = preg_match('/^#\s+(.*)/', $firstLine, $m) ? trim($m[1]) : $current['name'];
+$contentBlocked = false;
 
-        $parts = explode('/', $current['relative']);
-        for ($i = 0; $i < count($parts); $i++) {
-            $path = implode('/', array_slice($parts, 0, $i + 1));
-            $breadcrumbs[] = [
-                'name' => $parts[$i],
-                'path' => $path,
-                'isFile' => $i === count($parts) - 1,
-            ];
+if ($current) {
+    if (isProtectedFile($current['relative'], $config) && !$isAuthorized) {
+        $contentBlocked = true;
+        $title = 'Файл защищён';
+    } else {
+        $raw = file_get_contents($current['path']);
+        if ($raw !== false) {
+            $content = $parsedown->text($raw);
+            $content = convertInternalLinks($content, $current['relative']);
+
+            $firstLine = trim(explode("\n", $raw)[0] ?? '');
+            $title = preg_match('/^#\s+(.*)/', $firstLine, $m) ? trim($m[1]) : $current['name'];
+
+            $parts = explode('/', $current['relative']);
+            for ($i = 0; $i < count($parts); $i++) {
+                $path = implode('/', array_slice($parts, 0, $i + 1));
+                $breadcrumbs[] = [
+                    'name'   => $parts[$i],
+                    'path'   => $path,
+                    'isFile' => $i === count($parts) - 1,
+                ];
+            }
         }
     }
 }
@@ -497,14 +655,115 @@ if (empty($files)) {
             background: rgba(0,0,0,0.05);
         }
 
+        /* Auth */
+
+        .auth-form {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+        .auth-form input {
+            flex: 1;
+            min-width: 0;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+        .auth-form input:focus { border-color: var(--accent); }
+        .auth-form button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 7px 12px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .auth-form button:hover { filter: brightness(1.1); }
+
+        .logout-link {
+            display: inline-block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            text-decoration: none;
+        }
+        .logout-link:hover { color: var(--accent); }
+
+        nav li.locked a { opacity: 0.75; }
+        .lock-badge {
+            font-size: 11px;
+            margin-left: 4px;
+            opacity: 0.9;
+        }
+
+        /* Модалка */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(2px);
+        }
+        .modal-overlay[hidden] { display: none; }
+        .modal {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px 24px;
+            width: 360px;
+            max-width: 92vw;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .modal h3 { margin: 0 0 6px; }
+        .modal-hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+        .modal input[type="password"] {
+            width: 100%;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+        .modal input[type="password"]:focus { border-color: var(--accent); }
+        .modal-actions {
+            display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;
+        }
+        .modal-actions button {
+            padding: 8px 14px; border-radius: 8px; cursor: pointer;
+            font-size: 13px; border: 1px solid var(--border);
+            background: var(--code-bg); color: var(--text);
+        }
+        .modal-actions button[type="submit"] {
+            background: var(--accent); color: #fff; border-color: transparent;
+        }
+
     </style>
 </head>
 <body>
 <nav>
     <h2><?= htmlspecialchars($NAV_TITLE, ENT_QUOTES, 'UTF-8') ?></h2>
+
+    <?php if (protectionEnabled($config)): ?>
+        <?php if (!$isAuthorized): ?>
+            <form method="post" class="auth-form" id="authFormTop">
+                <input type="password" name="password" placeholder="<?= htmlspecialchars($config['protected']['hint'] ?? 'Пароль', ENT_QUOTES, 'UTF-8') ?>" autocomplete="current-password">
+                <button type="submit">Войти</button>
+            </form>
+        <?php else: ?>
+            <a class="logout-link" href="?logout=1">Выйти 🔓</a>
+        <?php endif; ?>
+    <?php endif; ?>
+
     <ul>
         <?php if (!empty($tree)): ?>
-            <?= renderNavTree($tree, $current ? $current['relative'] : '') ?>
+            <?= renderNavTree($tree, $current ? $current['relative'] : '', $config, $isAuthorized) ?>
         <?php else: ?>
             <li style="color: var(--muted); padding: 10px;">Нет .md файлов</li>
         <?php endif; ?>
@@ -544,7 +803,31 @@ if (empty($files)) {
     <?php endif; ?>
 </main>
 
-<script>
+<script data-name="logout-cleanup">
+    (function(){
+        const params = new URLSearchParams(location.search);
+
+        if (params.get('logged_out') !== '1') return;
+
+        // 1. Чистим пароль из localStorage
+        try { localStorage.removeItem('md_docs_auth'); } catch (e) {}
+
+        // 2. На всякий случай чистим все поля с паролем на странице
+        document.querySelectorAll('input[name="password"]').forEach(inp => {
+            inp.value = '';
+            inp.setAttribute('autocomplete', 'new-password');
+        });
+
+        // 3. Убираем ?logged_out=1 из адресной строки,
+        //    чтобы F5 не запускал очистку повторно и URL был красивым
+        params.delete('logged_out');
+        const cleanUrl = location.pathname
+            + (params.toString() ? '?' + params.toString() : '')
+            + location.hash;
+        history.replaceState(null, '', cleanUrl);
+    })();
+</script>
+<script data-name="Nav Details">
 (function(){
     const params = new URLSearchParams(location.search);
     const file = params.get('file');
@@ -562,7 +845,7 @@ if (empty($files)) {
     });
 })();
 </script>
-<script>
+<script data-name="theme">
     (function(){
         const THEME_CONFIG = {
             dark:  <?= json_encode($darkVars,  JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
@@ -608,5 +891,67 @@ if (empty($files)) {
         });
     })();
 </script>
+<script data-name="auth">
+    (function(){
+        const modal     = document.getElementById('authModal');
+        const modalForm = document.getElementById('authFormModal');
+        const redirectF = document.getElementById('redirectFile');
+        const modalPwd  = document.getElementById('modalPassword');
+        const cancel    = document.getElementById('modalCancel');
+
+        // Перехват кликов по защищённым ссылкам
+        document.querySelectorAll('nav a[data-protected="1"]').forEach(a => {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                if (!modal) return;
+                redirectF.value = a.dataset.file || '';
+                modal.hidden = false;
+                setTimeout(() => modalPwd && modalPwd.focus(), 30);
+            });
+        });
+
+        if (cancel) {
+            cancel.addEventListener('click', () => { modal.hidden = true; });
+        }
+        if (modal) {
+            modal.addEventListener('click', e => {
+                if (e.target === modal) modal.hidden = true;
+            });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && !modal.hidden) modal.hidden = true;
+            });
+        }
+
+        // Автозаполнение формы из localStorage (fallback, если куки отключены)
+        const saved = localStorage.getItem('md_docs_auth');
+        if (saved) {
+            const topInput = document.querySelector('#authFormTop input[name="password"]');
+            if (topInput && !topInput.value) topInput.value = saved;
+        }
+
+        // Если сервер только что сохранил пароль — дублируем в localStorage
+        <?php if (!empty($saveToLocalStorage)): ?>
+        try { localStorage.setItem('md_docs_auth', <?= json_encode($submittedPassword) ?>); } catch(e) {}
+        <?php endif; ?>
+    })();
+</script>
+
+<?php if (protectionEnabled($config)): ?>
+    <div class="modal-overlay" id="authModal" hidden>
+        <div class="modal">
+            <h3><?= htmlspecialchars($config['protected']['title'] ?? 'Файл защищён', ENT_QUOTES, 'UTF-8') ?></h3>
+            <p class="modal-hint"><?= htmlspecialchars($config['protected']['hint'] ?? 'Введите пароль для доступа', ENT_QUOTES, 'UTF-8') ?></p>
+            <form method="post" id="authFormModal">
+                <input type="hidden" name="redirect_file" id="redirectFile" value="">
+                <input type="password" name="password" id="modalPassword" placeholder="Пароль" autocomplete="current-password" autofocus>
+                <div class="modal-actions">
+                    <button type="button" id="modalCancel">Отмена</button>
+                    <button type="submit">Открыть</button>
+                </div>
+            </form>
+        </div>
+    </div>
+<?php endif; ?>
+
 </body>
 </html>
