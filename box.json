@@ -1,0 +1,51 @@
+{
+    "main": "vendor/autoload.php",
+    "output": "markvault.phar",
+    "force-autodiscovery": true,
+
+    "directories": [
+        "vendor"
+    ],
+
+    "compactors": [
+        "KevinGH\\Box\\Compactor\\Php",
+        "KevinGH\\Box\\Compactor\\Json"
+    ],
+
+    "stub": false,
+    "compression": "GZ",
+
+    "check-requirements": false,
+
+    "blacklist": [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        ".github",
+        ".box"
+    ],
+
+    "finder": [
+        {
+            "notName": "/LICENSE|.*\\.md|.*\\.dist|Makefile|composer\\.json|composer\\.lock/",
+            "exclude": [
+                "doc",
+                "test",
+                "tests",
+                "vendor-bin",
+                ".gitignore",
+                ".coveralls.yml",
+                ".php_cs.dist",
+                ".travis.yml",
+                "phpstan.neon",
+                "phpunit.xml"
+            ],
+            "in": "vendor"
+        },
+        {
+            "name": "composer.json",
+            "in": "."
+        }
+    ],
+    "dump-autoload": true
+}

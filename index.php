@@ -1,7 +1,13 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/vendor/autoload.php';
+if (!defined("PHAR_PATH")) { define("PHAR_PATH", __DIR__ . '/markvault.phar'); }
+
+if (is_file(PHAR_PATH)) {
+    require_once PHAR_PATH;
+} else {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
 
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Component\Yaml\Exception\ParseException;
