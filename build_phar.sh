@@ -14,10 +14,11 @@ fi
 
 BOX_MAIN=$(php -r "echo json_decode(file_get_contents('box.json'), true)['main'] ?? 'index.php';")
 BOX_OUTPUT=$(php -r "echo json_decode(file_get_contents('box.json'), true)['output'] ?? 'output.phar';")
-VERSION_DIR=$(dirname "$BOX_MAIN")
+VERSION_DIR=vendor
 
 echo "   Main script: $BOX_MAIN"
 echo "   Output PHAR: $BOX_OUTPUT"
+echo "   Version file: $VERSION_DIR/_version"
 
 # ---- Rebuild image if requested ----
 if [ "$1" = "--rebuild" ]; then
@@ -117,6 +118,9 @@ docker run --rm \
         chown \${HOST_UID}:\${HOST_GID} $VERSION_DIR/_version && \
         echo '   Compiling PHAR...' && \
         box compile && \
+        echo '   Smoke test...' && \
+        php /app/$BOX_OUTPUT --version > /dev/null && \
+        echo "   Smoke test passed" && \
         rm $VERSION_DIR/_version && \
         echo '   Fixing permissions...' && \
         chown \${HOST_UID}:\${HOST_GID} /app/$BOX_OUTPUT && \

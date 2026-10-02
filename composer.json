@@ -12,7 +12,8 @@
         "php": "^8.2",
         "karelwintersky/arris.config": "^1.0",
         "erusev/parsedown": "^1.8",
-        "symfony/yaml": "^7.4"
+        "symfony/yaml": "^7.4",
+        "karelwintersky/arris.toolkit.cli-console": "^1.4"
     },
     "repositories": [
         {

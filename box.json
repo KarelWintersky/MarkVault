@@ -1,7 +1,11 @@
 {
-    "main": "vendor/autoload.php",
+    "main": "index.php",
     "output": "markvault.phar",
     "force-autodiscovery": true,
+
+    "files": [
+        "index.php"
+    ],
 
     "directories": [
         "app",
@@ -13,7 +17,7 @@
         "KevinGH\\Box\\Compactor\\Json"
     ],
 
-    "stub": false,
+    "shebang": false,
     "compression": "GZ",
 
     "check-requirements": false,
@@ -23,7 +27,8 @@
         "CHANGELOG.md",
         "LICENSE",
         ".github",
-        ".box"
+        ".box",
+        "markvault.phar"
     ],
 
     "finder": [
