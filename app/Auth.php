@@ -161,32 +161,10 @@ final class Auth
      * замочка его нет в списке вообще. Вошедшим с паролем он, наоборот,
      * виден, как обычно — скрывать надо от гостей, а не от тех, кому пароль
      * уже введён. Проверка пароля сама по себе не слабеет.
-     *
-     * Принимается и настоящий bool из YAML, и строка: незакавыченное «false»
-     * разбирается как bool, а «false» в кавычках приходит строкой.
      */
     public function showsProtectedInNavigation(): bool
     {
-        if (!array_key_exists('visible', $this->rules)) {
-            return true;
-        }
-
-        $visible = $this->rules['visible'];
-
-        if (is_bool($visible)) {
-            return $visible;
-        }
-
-        if (is_string($visible)) {
-            return !in_array(strtolower(trim($visible)), ['false', 'no', 'off', '0', ''], true);
-        }
-
-        if (is_int($visible)) {
-            return $visible !== 0;
-        }
-
-        // Мусор в конфиге: ведём себя как при настройке, которой нет.
-        return true;
+        return Config::toBool($this->rules['visible'] ?? null, true);
     }
 
     public function title(): string

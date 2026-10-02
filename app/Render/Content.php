@@ -19,6 +19,9 @@ use App\Units\Path;
  *   2. остальные — natural sort по относительному пути;
  *   3. «sort.after_all» — в порядке перечисления в конфиге.
  *
+ * Пункт 2 по умолчанию раскладывается по уровням дерева: на каждом уровне
+ * каталоги идут раньше файлов, внутри каждого — по алфавиту
+ * («sort.folders_first: false» возвращает сплошное сравнение путей).
  * before_all приоритетнее: файл из обоих списков остаётся в before.
  */
 final class Content
@@ -40,6 +43,9 @@ final class Content
 
     /** @var array<string,int> путь → порядковый номер в after_all */
     private readonly array $after;
+
+    /** Каталоги в навигации идут раньше файлов? */
+    private readonly bool $foldersFirst;
 
     private readonly string $defaultFile;
 
@@ -70,6 +76,11 @@ final class Content
 
         $this->before = $before;
         $this->after = $after;
+
+        // «sort.folders_first» — каталоги раньше файлов внутри основной
+        // группы. before_all/after_all его не касаются: там порядок задан
+        // конфигом явно.
+        $this->foldersFirst = Config::toBool($sort['folders_first'] ?? null, true);
 
         $this->defaultFile = $config->string('content.default_file', 'README.md');
     }
@@ -186,11 +197,52 @@ final class Content
                 return $indexA <=> $indexB;
             }
 
-            // …а внутри основной группы — natural sort по пути.
-            return strnatcmp($a->relative, $b->relative);
+            // …а внутри основной группы — либо natural sort по пути целиком,
+            // либо то же, но по уровням дерева.
+            return $this->foldersFirst
+                ? $this->compareByTree($a->relative, $b->relative)
+                : strnatcmp($a->relative, $b->relative);
         });
 
         return $documents;
+    }
+
+    /**
+     * Порядок внутри основной группы при folders_first: на каждом уровне
+     * сначала каталоги, затем файлы, внутри каждого — по алфавиту.
+     *
+     * Сравнивать приходится по сегментам пути, а не по строке целиком: в
+     * «Questions/army.md» и «README.md» общий префикс обрезает естественный
+     * порядок, и папки перемешивались бы с файлами одной кучей.
+     *
+     * Решение «каталог или файл» принимается на каждом уровне до сравнения
+     * имён — иначе цифры в именах папок («1 - …») всё равно встали бы перед
+     * буквами, и «каталоги первыми» не получилось бы.
+     */
+    private function compareByTree(string $a, string $b): int
+    {
+        $segmentsA = explode('/', $a);
+        $segmentsB = explode('/', $b);
+        $common = min(count($segmentsA), count($segmentsB));
+
+        for ($i = 0; $i < $common; $i++) {
+            // Не последний сегмент — значит документ лежит в каталоге,
+            // имя которого стоит вот здесь.
+            $aInFolder = count($segmentsA) > $i + 1;
+            $bInFolder = count($segmentsB) > $i + 1;
+
+            if ($aInFolder !== $bInFolder) {
+                return $aInFolder ? -1 : 1;
+            }
+
+            $cmp = strnatcmp($segmentsA[$i], $segmentsB[$i]);
+
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+        }
+
+        return count($segmentsB) <=> count($segmentsA);
     }
 
     /**

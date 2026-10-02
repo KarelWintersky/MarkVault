@@ -75,6 +75,9 @@ final class Config
                 'index.php', 'vendor', 'composer.json', 'composer.lock',
                 '.git', '.gitignore', 'test.php', 'config.yaml',
             ],
+            'sort'  =>  [
+                'folders_first' =>  true
+            ],
             'theme' => [
                 'default' => 'dark',
                 'dark' => [
@@ -110,6 +113,32 @@ final class Config
         $value = $this->raw->get($key, $default);
 
         return is_array($value) ? $default : (string)$value;
+    }
+
+    /**
+     * Приводит значение настройки к bool мягко.
+     *
+     * Нужен там, где настройку удобнее достать из секции целиком, а не по
+     * ключу (см. «protected»: его ключи содержат точки). Незакавыченное
+     * «false» в YAML разбирается как bool, а «false» в кавычках приходит
+     * строкой. Отсутствие ключа и любой мусор дают $default — битый конфиг
+     * не должен ломать страницу.
+     */
+    public static function toBool(mixed $value, bool $default): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            return !in_array(strtolower(trim($value)), ['false', 'no', 'off', '0', ''], true);
+        }
+
+        if (is_int($value)) {
+            return $value !== 0;
+        }
+
+        return $default;
     }
 
     /**
