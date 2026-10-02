@@ -12,32 +12,42 @@ declare(strict_types=1);
  *   2. MARKVAULT_CONFIG              — fastcgi_param от nginx
  *   3. config.yaml рядом с index.php — локальная разработка
  *
- * Собранный PHAR содержит и app/, и vendor/, поэтому подключается сам себя.
- * Если рядом с index.php лежит markvault.phar — запускается он: так проверяют
- * сборку, не заглядывая внутрь.
  */
 
-$nextToApp = __DIR__ . '/markvault.phar';
+// Собранный PHAR содержит и app/, и vendor/, поэтому подключается сам себя.
+// Если рядом с index.php лежит markvault.phar — запускается он: так проверяют
+// сборку, не заглядывая внутрь. Внутри PHAR этого файла нет, поэтому проверка
+// заодно защищает от рекурсии.
+if (is_file(__DIR__ . '/markvault.phar')) {
+    require_once __DIR__ . '/markvault.phar';
 
-// Внутри PHAR этого файла нет, поэтому проверка заодно защищает от рекурсии.
-if (is_file($nextToApp)) {
-    require_once $nextToApp;
-} else {
-    require_once __DIR__ . '/vendor/autoload.php';
+    // phar — это main, он уже отрисовал страницу; продолжать нечего, иначе
+    // ниже отрисовалась бы вторая копия той же страницы.
+    return;
 }
 
-$args = App\Helper::args();
+require_once __DIR__ . '/vendor/autoload.php';
 
-if (App\Helper::handleFlags($args)) {
-    exit(0);
+// Разбор ключей — только под CLI, и только когда они есть: пустой вызов
+// должен рендерить книгу, а не показывать справку.
+if (App\Helper::hasCliOptions(App\Helper::args())) {
+    App\Helper::runCli();
 }
 
-$configFile = App\Helper::configFile($args);
+$configFile = App\Helper::configFile();
 
 if ($configFile !== null && !is_file($configFile)) {
     error_log('MarkVault: конфиг не найден — ' . $configFile);
     http_response_code(500);
-    exit('MarkVault: не удалось прочитать конфигурацию. Подробности в error.log.');
+    // Сообщение — тело ответа, поэтому echo, а не stderr: под FPM оно идёт
+    // клиенту. exit() со строкой дал бы код 0, а ошибка обязана быть видна
+    // и по коду возврата CLI.
+    echo 'MarkVault: не удалось прочитать конфигурацию. Подробности в error.log.';
+    exit(1);
 }
 
-(new App\Application(App\Helper::baseDir(__DIR__, $configFile), null, $configFile))->run();
+(
+    new App\Application(
+        App\Helper::baseDir(__DIR__, $configFile), null, $configFile
+    )
+)->run();

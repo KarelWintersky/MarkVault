@@ -4,7 +4,7 @@ set -e
 PROJECT_DIR="$(basename "$(pwd)")"
 echo "Building $PROJECT_DIR PHAR..."
 
-IMAGE_NAME="markvault-builder-grasp"
+IMAGE_NAME="phar-builder-markvault"
 
 # ---- Read box.json ----
 if [ ! -f "box.json" ]; then
@@ -20,6 +20,26 @@ echo "   Main script: $BOX_MAIN"
 echo "   Output PHAR: $BOX_OUTPUT"
 echo "   Version file: $VERSION_DIR/_version"
 
+CURRENT_UID=$(id -u)
+CURRENT_GID=$(id -g)
+TMP_DOCKERFILE=""
+
+# Контейнер работает от root, поэтому всё, что он кладёт в bind-mount,
+# принадлежит root. Возвращаем файл хостовому пользователю и при успешной
+# сборке, и при любой ошибке: иначе прерванный build оставляет
+# markvault.phar в root:root. chown внутри контейнера для этого не годится —
+# он стоит в той же цепочке &&, что и дымовая проверка, и до неё не доходит.
+cleanup() {
+    if [ -n "$TMP_DOCKERFILE" ]; then
+        rm -f "$TMP_DOCKERFILE"
+    fi
+
+    if [ -f "$BOX_OUTPUT" ]; then
+        chown "$CURRENT_UID:$CURRENT_GID" "$BOX_OUTPUT" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+
 # ---- Rebuild image if requested ----
 if [ "$1" = "--rebuild" ]; then
     echo "Removing existing image $IMAGE_NAME for rebuild..."
@@ -31,7 +51,6 @@ if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
     echo "Image $IMAGE_NAME not found, building..."
 
     TMP_DOCKERFILE="/tmp/markvault_phar_builder.Dockerfile"
-    trap 'rm -f "$TMP_DOCKERFILE"' EXIT
 
     if [ -f "box.phar" ]; then
         echo "Found local box.phar, will COPY it into image"
@@ -84,10 +103,8 @@ else
     echo "Using existing image $IMAGE_NAME (pass --rebuild to rebuild)"
 fi
 
-CURRENT_UID=$(id -u)
-CURRENT_GID=$(id -g)
-
 echo "   Extracting version info..."
+
 GIT_TAG=$(git describe --tags --always 2>/dev/null || echo "0.0.0")
 GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_SUBJECT=$(git log --oneline --format=%B -n 1 HEAD 2>/dev/null | head -n 1 || echo "no commit")
@@ -96,7 +113,11 @@ APP_VERSION="Version: ${GIT_SUBJECT} #${GIT_HASH} (${GIT_DATE})"
 echo "   $APP_VERSION"
 
 echo "Running build..."
-docker run --rm \
+
+# set -e оборвал бы скрипт на первой же упавшей команде, и сообщение
+# «PHAR ready» не напечаталось бы. Ловим код возврата docker сами: так видно,
+# на каком шаге сборка встала, а готовый файл всё равно виден в листинге.
+if ! docker run --rm \
     -v "$(pwd)":/app \
     -e HOST_UID=$CURRENT_UID \
     -e HOST_GID=$CURRENT_GID \
@@ -107,7 +128,7 @@ docker run --rm \
     -e APP_VERSION="$APP_VERSION" \
     "$IMAGE_NAME" sh -c "
         echo '   Installing dependencies...' && \
-        composer install --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --ignore-platform-req=ext-redis && \
+        composer install -v --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --ignore-platform-req=ext-redis && \
         echo '   Generating version file...' && \
         mkdir -p $VERSION_DIR && \
         echo \"\$GIT_SUBJECT\"    > $VERSION_DIR/_version && \
@@ -118,17 +139,25 @@ docker run --rm \
         chown \${HOST_UID}:\${HOST_GID} $VERSION_DIR/_version && \
         echo '   Compiling PHAR...' && \
         box compile && \
-        echo '   Smoke test...' && \
-        php /app/$BOX_OUTPUT --version > /dev/null && \
-        echo "   Smoke test passed" && \
-        rm $VERSION_DIR/_version && \
-        echo '   Fixing permissions...' && \
         chown \${HOST_UID}:\${HOST_GID} /app/$BOX_OUTPUT && \
+        echo '   Smoke test...' && \
+        php /app/$BOX_OUTPUT --version && \
+        echo '   Smoke test passed' && \
+        rm $VERSION_DIR/_version && \
         echo 'Done!'
     "
+then
+    BUILD_FAILED=1
+    echo "Build failed: the container exited on a non-zero code (see the last line above)."
+fi
+
 if [ -f "$BOX_OUTPUT" ]; then
     echo "PHAR ready:"
     ls -lh "$BOX_OUTPUT"
+    if [ -n "$BUILD_FAILED" ]; then
+        echo "Warning: build did not finish cleanly — the file above may be incomplete."
+        exit 1
+    fi
 else
     echo "Error: $BOX_OUTPUT was not created."
     exit 1
