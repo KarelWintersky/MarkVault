@@ -20,6 +20,9 @@ final class Config
     public const DARK = 'dark';
     public const LIGHT = 'light';
 
+    public const FOLDERS_OPENED = 'opened';
+    public const FOLDERS_COLLAPSED = 'collapsed';
+
     /** Ключи конфигурации → имена CSS-переменных. */
     private const CSS_VARIABLES = [
         'bg' => '--bg',
@@ -62,11 +65,11 @@ final class Config
             'site' => [
                 'title' => 'Docs',
                 'nav_title' => 'Документы',
-                'default_file' => 'README.md',
             ],
-            'content' => $baseDir,
-            'nav' => [
-                'collapsed' => false,
+            'content' => [
+                'path' => $baseDir,
+                'default_file' => 'README.md',
+                'folders' => self::FOLDERS_OPENED,
             ],
             'hide' => [
                 'index.php', 'vendor', 'composer.json', 'composer.lock',
@@ -110,14 +113,17 @@ final class Config
     }
 
     /**
-     * Папки в навигации свёрнуты по умолчанию.
+     * Папки в навигации свёрнуты по умолчанию?
+     *
+     * Настройка «content.folders» — перечисление «opened» или «collapsed».
+     * Любое другое значение считается «opened», как и тема в defaultTheme().
      *
      * Ветка с открытым документом всё равно раскрывается — это делает
      * клиентский JS, иначе не было бы видно, где находится текущая страница.
      */
-    public function navCollapsed(): bool
+    public function foldersCollapsed(): bool
     {
-        return (bool)$this->get('nav.collapsed', false);
+        return $this->string('content.folders', self::FOLDERS_OPENED) === self::FOLDERS_COLLAPSED;
     }
 
     /**

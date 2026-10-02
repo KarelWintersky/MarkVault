@@ -89,7 +89,7 @@ final class Application
 
         [$title, $content, $breadcrumbs] = $this->buildDocumentView($current, $isAuthorized);
 
-        $nav = new Navigation($this->auth, $this->content, $isAuthorized, $this->config->navCollapsed());
+        $nav = new Navigation($this->auth, $this->content, $isAuthorized, $this->config->foldersCollapsed());
 
         return $this->renderTemplate(new Page(
             $this->config,
@@ -207,12 +207,13 @@ final class Application
     }
 
     /**
-     * Каталог с документами. Относительный «content» разрешается от корня
-     * приложения, поэтому конфиг не зависит от текущего каталога процесса.
+     * Каталог с документами. Относительный «content.path» разрешается от
+     * корня приложения, поэтому конфиг не зависит от текущего каталога
+     * процесса.
      */
     private function contentDir(): string
     {
-        $content = $this->config->string('content', $this->baseDir);
+        $content = $this->config->string('content.path', $this->baseDir);
 
         if ($content === '') {
             return $this->baseDir;

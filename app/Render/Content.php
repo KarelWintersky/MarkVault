@@ -71,7 +71,7 @@ final class Content
         $this->before = $before;
         $this->after = $after;
 
-        $this->defaultFile = $config->string('site.default_file', 'README.md');
+        $this->defaultFile = $config->string('content.default_file', 'README.md');
     }
 
     /**
@@ -221,6 +221,13 @@ final class Content
 
     /**
      * Секция «titles» превращается в карту «путь → подпись», мусор отбрасывается.
+     *
+     * ВНИМАНИЕ, ловушка синтаксиса: ключи секции содержат точки
+     * («05a-landing.md»), а Config::get() использует точку как разделитель
+     * вложенности. Поэтому читать «titles» по частям нельзя —
+     * get('titles.05a-landing.md') вернёт default, а не подпись.
+     * Работает только чтение секции целиком, как здесь. Настройку для
+     * отдельного файла придётся держать вне секции «titles».
      *
      * @return array<string,string>
      */
