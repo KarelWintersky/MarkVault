@@ -145,6 +145,8 @@ final class Application
         $saveToLocalStorage = $page->savePasswordToStorage;
         $submittedPassword = $page->submittedPassword;
 
+        $foldersRemember = $page->config->foldersRemember();
+
         ob_start();
         require self::TEMPLATE;
 

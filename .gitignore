@@ -1,3 +1,7 @@
 content
 .idea
 vendor
+composer.lock
+markvault.phar
+session*.md
+

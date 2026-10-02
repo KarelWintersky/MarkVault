@@ -23,6 +23,19 @@ final class Config
     public const FOLDERS_OPENED = 'opened';
     public const FOLDERS_COLLAPSED = 'collapsed';
 
+    /**
+     * «content.folders_remember» — как папки помнят раскрытие между переходами.
+     *
+     *   FOLDERS_REMEMBER_NONE       не помнить (поведение по умолчанию);
+     *   FOLDERS_REMEMBER_PER_FOLDER каждая папка помнит своё состояние, открыто
+     *                              сколько угодно одновременно;
+     *   FOLDERS_REMEMBER_SINGLE     открыта не более одной папки на уровне:
+     *                              открытие одной схлопывает остальных соседей.
+     */
+    public const FOLDERS_REMEMBER_NONE = 'none';
+    public const FOLDERS_REMEMBER_PER_FOLDER = 'per_folder';
+    public const FOLDERS_REMEMBER_SINGLE = 'single';
+
     /** Ключи конфигурации → имена CSS-переменных. */
     private const CSS_VARIABLES = [
         'bg' => '--bg',
@@ -70,6 +83,7 @@ final class Config
                 'path' => $baseDir,
                 'default_file' => 'README.md',
                 'folders' => self::FOLDERS_OPENED,
+                'folders_remember' => self::FOLDERS_REMEMBER_NONE,
             ],
             'hide' => [
                 'index.php', 'vendor', 'composer.json', 'composer.lock',
@@ -153,6 +167,27 @@ final class Config
     public function foldersCollapsed(): bool
     {
         return $this->string('content.folders', self::FOLDERS_OPENED) === self::FOLDERS_COLLAPSED;
+    }
+
+    /**
+     * Режим памяти раскрытых папок — «content.folders_remember».
+     *
+     * Значение приводится к известному перечислению: всё остальное считается
+     * «none», как и в defaultTheme(). Смысл режимов — в константах
+     * FOLDERS_REMEMBER_*.
+     *
+     * Настройка не меняет то, как папки выглядят при первой отрисовке: это
+     * по-прежнему «content.folders». Разница — только в том, что происходит
+     * после клика и при переходе по ссылке.
+     */
+    public function foldersRemember(): string
+    {
+        $mode = $this->string('content.folders_remember', self::FOLDERS_REMEMBER_NONE);
+
+        return match ($mode) {
+            self::FOLDERS_REMEMBER_PER_FOLDER, self::FOLDERS_REMEMBER_SINGLE => $mode,
+            default => self::FOLDERS_REMEMBER_NONE,
+        };
     }
 
     /**

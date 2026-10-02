@@ -108,7 +108,11 @@ final class Navigation
 
     /**
      * @param array<string,mixed> $node
-     * @param string[] $html
+     * @param string $key
+     * @param string $currentRelative
+     * @param string $indent
+     * @param int $depth
+     *
      * @return string[]
      */
     private function renderDirectory(array $node, string $key, string $currentRelative, string $indent, int $depth): array
@@ -116,9 +120,14 @@ final class Navigation
         $label = self::escape((string)($node['_label'] ?? $key));
         $details = $this->collapsed ? '<details>' : '<details open>';
 
+        // data-path — устойчивый ключ папки для клиентского JS: по нему
+        // состояние раскрытия ищется в localStorage и записывается обратно.
+        // Путь уникален в дереве, поэтому две вложенные папки не путаются.
+        $path = self::escape((string)($node['_path'] ?? $key));
+
         return [
             "{$indent}<li class=\"dir\">",
-            "{$indent}  {$details}",
+            "{$indent}  <details data-path=\"{$path}\">",
             "{$indent}    <summary>{$label}</summary>",
             "{$indent}    <ul>",
             $this->render($node['_children'], $currentRelative, $depth + 2),

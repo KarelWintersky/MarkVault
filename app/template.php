@@ -5,7 +5,7 @@
  * Шаблон: ожидает переменные, которые готовит App\Application::renderTemplate()
  * ($title, $navTitle, $tree, $current, $content, $breadcrumbs, $auth,
  * $protectionEnabled, $isAuthorized, $darkVars, $lightVars, $defaultTheme,
- * $hasDocuments, $saveToLocalStorage, $submittedPassword, $debugInfo).
+ * $hasDocuments, $saveToLocalStorage, $submittedPassword, $debugInfo, $foldersRemember).
  *
  * Логики здесь нет — только HTML, CSS и клиентский JS.
  */
@@ -284,7 +284,7 @@
 
     </style>
 </head>
-<body>
+<body data-folders-remember="<?= htmlspecialchars($foldersRemember, ENT_QUOTES, 'UTF-8') ?>">
 <nav>
     <h2><?= htmlspecialchars($navTitle, ENT_QUOTES, 'UTF-8') ?></h2>
 
@@ -366,21 +366,108 @@
     })();
 </script>
 <script data-name="Nav Details">
-(function(){
-    const params = new URLSearchParams(location.search);
-    const file = params.get('file');
-    if (!file) return;
+(function () {
+    const KEY = 'mdvault_folders';
+    const REMEMBER = ['per_folder', 'single'];
 
-    document.querySelectorAll('nav details').forEach(details => {
-        const link = details.parentElement.querySelector('a');
-        if (link) {
-            const url = new URL(link.href, location.origin);
-            const linkPath = url.searchParams.get('file');
-            if (linkPath && file.startsWith(linkPath + '/')) {
-                details.open = true;
+    const mode = document.body.dataset.foldersRemember;
+    const remember = REMEMBER.includes(mode);
+
+    const all = Array.from(document.querySelectorAll('nav details[data-path]'));
+    const byPath = new Map();
+    all.forEach(d => byPath.set(d.dataset.path, d));
+
+    // Соседи по уровню: те же <li> в том же списке. Вложенные папки не трогаем —
+    // «одна открытая папка на уровень» не значит «одна во всём дереве».
+    const siblings = (d) => {
+        const list = d.parentElement && d.parentElement.parentElement;
+        if (!list) return [];
+
+        return Array.from(list.children)
+            .filter(li => li !== d.parentElement)
+            .map(li => li.querySelector(':scope > details'))
+            .filter(Boolean);
+    };
+
+    let state = {};
+    if (remember) {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(KEY) || '{}');
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) state = parsed;
+        } catch (e) { state = {}; }
+
+        // Сохранённое состояние важнее того, что нарисовал сервер: папка,
+        // которую пользователь закрыл в прошлый раз, не должна распахиваться
+        // снова сама.
+        all.forEach(d => {
+            const saved = state[d.dataset.path];
+            if (typeof saved === 'boolean') d.open = saved;
+        });
+    }
+
+    // Ветка с открытым документом раскрывается всегда — иначе активный пункт
+    // не был бы виден. Путь строится из ?file=, поэтому вложенные папки тоже.
+    const active = new Set();
+    const file = new URLSearchParams(location.search).get('file');
+    if (file) {
+        const parts = file.split('/');
+        parts.pop();
+
+        let acc = '';
+        parts.forEach(part => {
+            acc = acc ? acc + '/' + part : part;
+            active.add(acc);
+
+            const d = byPath.get(acc);
+            if (d) d.open = true;
+        });
+    }
+
+    // «Не больше одной открытой папки на уровне» держим и при загрузке, а не
+    // только по клику: состояние могло остаться от режима per_folder. Побеждает
+    // папка из активной ветки, иначе — первая по порядку в разметке.
+    if (mode === 'single') {
+        all.forEach(d => {
+            if (!d.open) return;
+
+            const list = d.parentElement && d.parentElement.parentElement;
+            if (!list) return;
+
+            const peers = Array.from(list.children)
+                .map(li => li.querySelector(':scope > details'))
+                .filter(s => s && s.open);
+
+            const winner = peers.find(s => active.has(s.dataset.path)) || peers[0];
+            if (winner && winner !== d) d.open = false;
+        });
+    }
+
+    if (!remember) return;
+
+    const save = () => {
+        try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    };
+
+    // Пишем фактическое состояние, а не «намерение»: событие toggle срабатывает
+    // и на клике, и на программной установке open, поэтому в localStorage
+    // попадает ровно то, что видит пользователь.
+    all.forEach(d => {
+        d.addEventListener('toggle', () => {
+            state[d.dataset.path] = d.open;
+
+            if (d.open && mode === 'single') {
+                siblings(d).forEach(s => { s.open = false; });
             }
-        }
+
+            save();
+        });
     });
+
+    // Итог загрузки записываем сразу: иначе в localStorage осталось бы то, что
+    // было до правок (например, две открытые папки одного уровня), и следующая
+    // загрузка снова разбирала бы его заново.
+    all.forEach(d => { state[d.dataset.path] = d.open; });
+    save();
 })();
 </script>
 <script data-name="theme">
