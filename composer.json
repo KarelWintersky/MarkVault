@@ -16,11 +16,11 @@
         "karelwintersky/arris.toolkit.cli-console": "^1.4"
     },
     "repositories": [
+        { "packagist.org": false },
         {
             "type": "composer",
             "url": "https://satisfactor.wintersky.ru"
-        },
-        { "packagist.org": false }
+        }
     ],
     "autoload": {
         "psr-4": {

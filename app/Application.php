@@ -57,6 +57,16 @@ final class Application
     {
         $isAuthorized = $this->auth->isAuthorized();
 
+        // Запоминаем пароль только если он реально пришёл формой. И делаем
+        // это ДО редиректа: redirect() завершает процесс, поэтому кука,
+        // поставленная после него, просто не ушла бы браузеру — вход
+        // выглядел бы как «ничего не произошло»: страница открывается, но
+        // файл снова заперт.
+        $savePassword = $isAuthorized && $this->auth->isPasswordSubmitted();
+        if ($savePassword) {
+            $this->auth->remember();
+        }
+
         // Успешный вход с формы: уводим на запрошенный документ.
         if ($isAuthorized && $this->request->isPost()) {
             $redirectFile = $this->request->post('redirect_file');
@@ -64,12 +74,6 @@ final class Application
             if ($redirectFile !== null && $redirectFile !== '') {
                 $this->redirect('?file=' . rawurlencode($redirectFile));
             }
-        }
-
-        // Запоминаем пароль только если он реально пришёл формой.
-        $savePassword = $isAuthorized && $this->auth->isPasswordSubmitted();
-        if ($savePassword) {
-            $this->auth->remember();
         }
 
         if ($this->auth->isLogoutRequested()) {

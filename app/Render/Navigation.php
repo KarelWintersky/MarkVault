@@ -35,7 +35,21 @@ final class Navigation
     {
         $tree = [];
 
+        // При «protected.visible: false» защищённые файлы скрыты от тех, кто
+        // ещё не ввёл пароль; вошедшим они видны, как и при обычном поведении
+        // с замочком. Отсекаем их здесь, до построения дерева, а не при
+        // отрисовке: иначе в ветке остался бы пустой <details> для папки,
+        // в которой для гостя закрыты все файлы.
+        //
+        // На выбор открытого документа не влияет — по прямой ссылке файл
+        // по-прежнему открывается и спрашивает пароль.
+        $hideLocked = !$this->isAuthorized && !$this->auth->showsProtectedInNavigation();
+
         foreach ($documents as $document) {
+            if ($hideLocked && $this->auth->protects($document->relative)) {
+                continue;
+            }
+
             $parts = explode('/', $document->relative);
             $lastIndex = count($parts) - 1;
 

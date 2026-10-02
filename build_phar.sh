@@ -128,7 +128,7 @@ if ! docker run --rm \
     -e APP_VERSION="$APP_VERSION" \
     "$IMAGE_NAME" sh -c "
         echo '   Installing dependencies...' && \
-        composer install -v --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --ignore-platform-req=ext-redis && \
+        composer install -vvv --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --ignore-platform-req=ext-redis && \
         echo '   Generating version file...' && \
         mkdir -p $VERSION_DIR && \
         echo \"\$GIT_SUBJECT\"    > $VERSION_DIR/_version && \
