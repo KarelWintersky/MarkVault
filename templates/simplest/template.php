@@ -5,7 +5,8 @@
  * Шаблон: ожидает переменные, которые готовит App\Application::renderTemplate()
  * ($title, $navTitle, $tree, $current, $content, $breadcrumbs, $auth,
  * $protectionEnabled, $isAuthorized, $darkVars, $lightVars, $defaultTheme,
- * $hasDocuments, $saveToLocalStorage, $submittedPassword, $debugInfo, $foldersRemember).
+ * $hasDocuments, $saveToLocalStorage, $submittedPassword, $debugInfo, $foldersRemember,
+ * $buildVersion, $buildDate, $buildHash).
  *
  * Логики здесь нет — только HTML, CSS и клиентский JS.
  */
@@ -14,6 +15,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="MarkVault <?= htmlspecialchars($buildVersion ?? '', ENT_QUOTES, 'UTF-8') ?>">
+    <meta name="copyright" content="MarkVault <?= htmlspecialchars($buildDate ?? '', ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($buildHash ?? '', ENT_QUOTES, 'UTF-8') ?>">
     <title><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></title>
     <style>
         :root {

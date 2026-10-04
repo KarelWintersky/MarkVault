@@ -147,7 +147,11 @@ final class Application
         $saveToLocalStorage = $page->savePasswordToStorage;
         $submittedPassword = $page->submittedPassword;
 
-        $foldersRemember = $page->config->foldersRemember();
+                $foldersRemember = $page->config->foldersRemember();
+        $build = $this->buildInfo();
+        $buildVersion = $build['version'];
+        $buildDate = $build['date'];
+        $buildHash = $build['hash'];
 
         ob_start();
         require self::$TEMPLATE;
@@ -237,6 +241,44 @@ final class Application
     /**
      * Предупреждение вместо навигации, если markdown-файлов не нашлось.
      */
+    private function buildInfo(): array
+    {
+        $file = $this->baseDir . '/vendor/_version';
+        $version = 'unknown';
+        $date = '';
+        $hash = '';
+
+        if (is_file($file)) {
+            $text = file_get_contents($file);
+            if ($text !== false) {
+                $lines = array_values(array_filter(array_map("trim", preg_split("/
+?
+/", $text))));
+                if (!empty($lines)) {
+                    $summary = end($lines);
+                    if (str_starts_with($summary, 'Version: ')) {
+                        $version = $summary;
+                    } else {
+                        $version = $lines[0] ?? 'unknown';
+                    }
+                    if (isset($lines[1])) {
+                        $date = $lines[1];
+                    }
+                    if (isset($lines[2]) && preg_match('/[0-9a-f]{7,}/i', $lines[2])) {
+                        $hash = $lines[2];
+                    }
+                }
+            }
+        }
+
+        return [
+            'version' => $version,
+            'date' => $date,
+            'hash' => $hash,
+        ];
+    }
+
+
     private function notice(): string
     {
         $dir = htmlspecialchars($this->contentDir(), ENT_QUOTES, 'UTF-8');

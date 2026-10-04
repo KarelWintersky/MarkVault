@@ -20,6 +20,17 @@ update:		##@build Update project from GIT
 	@echo Updating project from GIT
 	git pull --no-rebase
 
+version:
+	VERSION_DIR=vendor; \
+	GIT_TAG=$$(git describe --tags --always 2>/dev/null || echo "0.0.0"); \
+	GIT_HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	GIT_SUBJECT=$$(git log --oneline --format=%B -n 1 HEAD 2>/dev/null | head -n 1 || echo "no commit"); \
+	GIT_DATE=$$(git log --oneline --format="%at" -n 1 HEAD 2>/dev/null | xargs -I{} date -d @{} +%Y-%m-%d 2>/dev/null || echo "unknown"); \
+	APP_VERSION="Version: $${GIT_SUBJECT} #$${GIT_HASH} ($${GIT_DATE})"; \
+	echo "$${GIT_SUBJECT}" > $${VERSION_DIR}/_version; \
+	echo "$${GIT_DATE}"   >> $${VERSION_DIR}/_version; \
+	echo "$${GIT_HASH}"   >> $${VERSION_DIR}/_version; \
+	echo "$${APP_VERSION}" >> $${VERSION_DIR}/_version
 
 # ------------------------------------------------
 # Add the following 'help' target to your makefile, add help text after each target name starting with '\#\#'
