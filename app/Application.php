@@ -19,7 +19,7 @@ use App\Units\Request;
  */
 final class Application
 {
-    private const TEMPLATE = __DIR__ . '/template.php';
+    private static string $TEMPLATE = '';
 
     private Config $config;
     private Content $content;
@@ -40,6 +40,8 @@ final class Application
         $this->config = Config::load($baseDir, $configFile);
         $this->content = new Content($this->config, $this->contentDir());
         $this->auth = new Auth($this->config, $this->request);
+
+        self::$TEMPLATE = dirname(__DIR__) . '/templates/simplest/template.php';
     }
 
     /**
@@ -148,7 +150,7 @@ final class Application
         $foldersRemember = $page->config->foldersRemember();
 
         ob_start();
-        require self::TEMPLATE;
+        require self::$TEMPLATE;
 
         return (string)ob_get_clean();
     }

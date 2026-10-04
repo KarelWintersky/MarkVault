@@ -82,14 +82,14 @@ hide:
   - config.yaml
 
 theme:
-  # Тема по умолчанию: dark | light
-  default: light
+  use: simplest
+  default: dark
 
 # 🔒 Защита файлов паролем.
 # Если секция отсутствует или пуста — защита отключена целиком.
 protected:
   password: "password"
-  visible: false
+  visible: true
 
   # Список файлов (относительные пути от корня контента).
   # Можно указывать как точный файл, так и всю папку (тогда защищены все .md внутри).

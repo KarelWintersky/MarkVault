@@ -93,26 +93,31 @@ final class Config
                 'folders_first' =>  true
             ],
             'theme' => [
+                'use' => 'simplest',
                 'default' => 'dark',
-                'dark' => [
-                    'bg' => '#0f1115',
-                    'panel' => '#161920',
-                    'text' => '#e6e8eb',
-                    'muted' => '#9aa0a6',
-                    'accent' => '#5b9df9',
-                    'code_bg' => '#1e222a',
-                    'border' => '#2a2f3a',
-                ],
-                'light' => [
-                    'bg' => '#faf9f7',
-                    'panel' => '#f2f0eb',
-                    'text' => '#232323',
-                    'muted' => '#6b6b6b',
-                    'accent' => '#0366d6',
-                    'code_bg' => '#f6f8fa',
-                    'border' => '#e1e4e8',
-                ],
             ],
+            'themes' => [
+                'simplest' => [
+                    'dark' => [
+                        'bg' => '#0f1115',
+                        'panel' => '#161920',
+                        'text' => '#e6e8eb',
+                        'muted' => '#9aa0a6',
+                        'accent' => '#5b9df9',
+                        'code_bg' => '#1e222a',
+                        'border' => '#2a2f3a',
+                    ],
+                    'light' => [
+                        'bg' => '#faf9f7',
+                        'panel' => '#f2f0eb',
+                        'text' => '#232323',
+                        'muted' => '#6b6b6b',
+                        'accent' => '#0366d6',
+                        'code_bg' => '#f6f8fa',
+                        'border' => '#e1e4e8',
+                    ],
+                ],
+            ]
         ];
     }
 
@@ -197,13 +202,19 @@ final class Config
      */
     public function themeVariables(string $theme): array
     {
-        $section = $this->get('theme', []);
-
-        if (!is_array($section)) {
+        $themes = $this->get('themes', []);
+        if (!is_array($themes)) {
             return [];
         }
 
-        $variables = $section[$theme] ?? [];
+        $use = $this->useTheme();
+        $set = $themes[$use] ?? [];
+
+        if (!is_array($set)) {
+            return [];
+        }
+
+        $variables = $set[$theme] ?? [];
 
         return is_array($variables) ? $variables : [];
     }
@@ -223,6 +234,16 @@ final class Config
     {
         return $this->themeVariables(self::LIGHT);
     }
+
+    /** Какое название темы используется (theme.use). */
+    public function useTheme(): string
+    {
+        $section = $this->get('theme', []);
+        $use = is_array($section) ? ($section['use'] ?? 'simplest') : 'simplest';
+
+        return is_string($use) && $use !== '' ? $use : 'simplest';
+    }
+
 
     /** Какая тема показывается по умолчанию. */
     public function defaultTheme(): string

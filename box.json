@@ -9,7 +9,8 @@
 
     "directories": [
         "app",
-        "vendor"
+        "vendor",
+        "templates"
     ],
 
     "compactors": [
