@@ -53,6 +53,15 @@ final class Navigation
             $parts = explode('/', $document->relative);
             $lastIndex = count($parts) - 1;
 
+            if ($hideLocked) {
+                for ($i = 0; $i < $lastIndex; $i++) {
+                    $pathPart = implode('/', array_slice($parts, 0, $i + 1));
+                    if ($this->auth->protectsFolder($pathPart)) {
+                        continue 2;
+                    }
+                }
+            }
+
             $branch = &$tree;
             $path = '';
 
@@ -120,20 +129,22 @@ final class Navigation
         $label = self::escape((string)($node['_label'] ?? $key));
         $details = $this->collapsed ? '<details>' : '<details open>';
 
-        // data-path — устойчивый ключ папки для клиентского JS: по нему
-        // состояние раскрытия ищется в localStorage и записывается обратно.
-        // Путь уникален в дереве, поэтому две вложенные папки не путаются.
-        $path = self::escape((string)($node['_path'] ?? $key));
+        $rawPath = (string)($node['_path'] ?? $key);
+        $path = self::escape($rawPath);
+
+        $folderLocked = $this->auth->protectsFolder($rawPath) && !$this->isAuthorized;
+        $liClassDir = $folderLocked ? ' class="locked"' : '';
+        $summaryAttr = $folderLocked ? ' data-protected="1"' : '';
 
         return [
-            "{$indent}<li class=\"dir\">",
-            "{$indent}  <details data-path=\"{$path}\">",
-            "{$indent}    <summary>{$label}</summary>",
-            "{$indent}    <ul>",
+            $indent . '<li class="dir"' . $liClassDir . '>',
+            $indent . '  <details data-path="' . $path . '">',
+            $indent . '    <summary' . $summaryAttr . '>' . $label . '</summary>',
+            $indent . '    <ul>',
             $this->render($node['_children'], $currentRelative, $depth + 2),
-            "{$indent}    </ul>",
-            "{$indent}  </details>",
-            "{$indent}</li>",
+            $indent . '    </ul>',
+            $indent . '  </details>',
+            $indent . '</li>',
         ];
     }
 

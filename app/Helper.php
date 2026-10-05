@@ -94,34 +94,6 @@ final class Helper
         return dirname(realpath($configFile) ?: $configFile);
     }
 
-    /**
-     * Версия сборки из vendor/_version, который кладёт build_phar.sh.
-     *
-     * Файл лежит в vendor/, поэтому от каталога app/ идём на уровень выше:
-     * внутри phar это phar://…/vendor/_version, в checkout — vendor/_version.
-     * В обычном checkout файла нет, и версия неизвестна.
-     *
-     * Без разметки CLIConsole: --version читают скрипты, ANSI-коды там лишние.
-     */
-    public static function version(): string
-    {
-        $text = @file_get_contents(dirname(__DIR__) . '/vendor/_version');
-
-        if ($text === false) {
-            return 'unknown (сборка не выполнялась)';
-        }
-
-        $lines = array_values(array_filter(array_map(trim(...), explode("\n", $text))));
-
-        // build_phar.sh пишет сводку последней строкой — она и годится
-        // для однострочного --version.
-        $summary = end($lines);
-
-        return str_starts_with((string)$summary, 'Version: ')
-            ? $summary
-            : trim($text);
-    }
-
     private static function cli(): CLIRunner
     {
         $cli = new CLIRunner(self::description());
@@ -129,12 +101,14 @@ final class Helper
         $cli->register(
             option: 'config',
             short: 'c',
+            description: 'путь к config.yaml книги; перекрывает MARKVAULT_CONFIG',
             type: OptionType::WithValue,
+
             // required обязан быть false: конфиг не обязателен, его может
             // принести MARKVAULT_CONFIG, а тип WithValue без default
             // автоматически становится обязательным.
             required: false,
-            description: 'путь к config.yaml книги; перекрывает MARKVAULT_CONFIG',
+
             handler: function (mixed $value): void {
                 // getopt отдаёт массив, если ключ повторился, и пустую
                 // строку на «--config=» — оба случая означают не один путь.
@@ -158,7 +132,7 @@ final class Helper
             short: 'V',
             description: 'показать версию сборки и выйти',
             handler: function (): void {
-                echo self::version(), PHP_EOL;
+                echo Application::$VERSION->appVersion, PHP_EOL;
                 exit(0);
             },
         );
@@ -169,41 +143,41 @@ final class Helper
     /** Описание для справки: разметку разворачивает CLIConsole. */
     private static function description(): string
     {
-        $lines = [
-            "<font color='cyan'>MarkVault</font> — просмотрщик Markdown-каталога.",
-            '',
-            'Код целиком лежит в этом PHAR, а данные — рядом с ним: конфиг и',
-            'каталог документов. Конфиг задаёт путь к контенту, заголовки,',
-            'сортировку, тему и необязательную парольную защиту.',
-            '',
-            "<font color='green'>Примеры</font>",
-            '  php markvault.phar --config=/путь/к/config.yaml',
-            '  php markvault.phar --version',
-            '',
-            "<font color='green'>Под nginx</font> исполняемый файл — сам PHAR, а конфиг",
-            'приходит параметром. Свои fastcgi_param обязаны идти ПОСЛЕ',
-            'include fastcgi_params, иначе перекроются значения из общего файла.',
-            '',
-            '  location ~ \.php$ {',
-            '      include fastcgi_params;',
-            '      fastcgi_param SCRIPT_FILENAME /usr/local/bin/markvault.phar;',
-            '      fastcgi_param MARKVAULT_CONFIG /var/www.books/Книга/config.yaml;',
-            '      fastcgi_pass unix:/run/php/php8.2-fpm.sock;',
-            '  }',
-            '',
-            "<font color='green'>Минимальный config.yaml</font> рядом с каталогом content:",
-            '',
-            '  site:',
-            '    title: "Моя книга"',
-            '  content:',
-            '    path: ./content',
-            '    default_file: README.md',
-            '    folders: opened',
-            '',
-            "<font color='green'>Версия</font>",
-            '  ' . self::version(),
-        ];
+    $version = Application::$VERSION->appVersion;
 
-        return implode(PHP_EOL, $lines);
+        return <<<TEXT
+<font color='cyan'>MarkVault</font> — просмотрщик Markdown-каталога.
+
+Код целиком лежит в этом PHAR, а данные — рядом с ним: конфиг и
+каталог документов. Конфиг задаёт путь к контенту, заголовки,
+сортировку, тему и необязательную парольную защиту.
+
+<font color='green'>Примеры</font>
+  php markvault.phar --config=/путь/к/config.yaml
+  php markvault.phar --version
+
+<font color='green'>Под nginx</font> исполняемый файл — сам PHAR, а конфиг
+приходит параметром. Свои fastcgi_param обязаны идти ПОСЛЕ
+include fastcgi_params, иначе перекроются значения из общего файла.
+
+  location ~ \.php\$ {
+      include fastcgi_params;
+      fastcgi_param SCRIPT_FILENAME /usr/local/bin/markvault.phar;
+      fastcgi_param MARKVAULT_CONFIG /var/www.books/Книга/config.yaml;
+      fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+  }
+
+<font color='green'>Минимальный config.yaml</font> рядом с каталогом content:
+
+  site:
+    title: "Моя книга"
+  content:
+    path: ./content
+    default_file: README.md
+    folders: opened
+
+<font color='green'>Версия</font>
+  {$version}
+TEXT;
     }
 }

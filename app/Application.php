@@ -5,6 +5,7 @@ namespace App;
 
 use App\DTO\Document;
 use App\DTO\Page;
+use App\DTO\Version;
 use App\Render\Content;
 use App\Render\Markdown;
 use App\Render\Navigation;
@@ -19,12 +20,13 @@ use App\Units\Request;
  */
 final class Application
 {
-    private static string $TEMPLATE = '';
+    public static string $TEMPLATE = '';
+    public static Version $VERSION;
 
-    private Config $config;
-    private Content $content;
-    private Auth $auth;
-    private Request $request;
+    public Config $config;
+    public Content $content;
+    public Auth $auth;
+    public Request $request;
 
     /**
      * @param string $baseDir корень приложения — каталог с index.php
@@ -42,6 +44,7 @@ final class Application
         $this->auth = new Auth($this->config, $this->request);
 
         self::$TEMPLATE = dirname(__DIR__) . '/templates/simplest/template.php';
+        self::$VERSION = Version::fromFile(dirname(__DIR__) . '/vendor/_version.json');
     }
 
     /**
@@ -147,11 +150,11 @@ final class Application
         $saveToLocalStorage = $page->savePasswordToStorage;
         $submittedPassword = $page->submittedPassword;
 
-                $foldersRemember = $page->config->foldersRemember();
-        $build = $this->buildInfo();
-        $buildVersion = $build['version'];
-        $buildDate = $build['date'];
-        $buildHash = $build['hash'];
+        $foldersRemember = $page->config->foldersRemember();
+
+        $buildVersion = Application::$VERSION->appVersion;
+        $buildDate = Application::$VERSION->date;
+        $buildHash = Application::$VERSION->hash;
 
         ob_start();
         require self::$TEMPLATE;
@@ -219,11 +222,21 @@ final class Application
     }
 
     /**
+     * Предупреждение вместо навигации, если markdown-файлов не нашлось.
+     * return [
+     * 'version' => $version, 'Version: '
+     * 'date' => $date,
+     * 'hash' => $hash,
+     * ];
+     *
+     */
+
+    /**
      * Каталог с документами. Относительный «content.path» разрешается от
      * корня приложения, поэтому конфиг не зависит от текущего каталога
      * процесса.
      */
-    private function contentDir(): string
+    public function contentDir(): string
     {
         $content = $this->config->string('content.path', $this->baseDir);
 
@@ -236,46 +249,6 @@ final class Application
         }
 
         return Path::normalize($content);
-    }
-
-    /**
-     * Предупреждение вместо навигации, если markdown-файлов не нашлось.
-     */
-    private function buildInfo(): array
-    {
-        $file = $this->baseDir . '/vendor/_version';
-        $version = 'unknown';
-        $date = '';
-        $hash = '';
-
-        if (is_file($file)) {
-            $text = file_get_contents($file);
-            if ($text !== false) {
-                $lines = array_values(array_filter(array_map("trim", preg_split("/
-?
-/", $text))));
-                if (!empty($lines)) {
-                    $summary = end($lines);
-                    if (str_starts_with($summary, 'Version: ')) {
-                        $version = $summary;
-                    } else {
-                        $version = $lines[0] ?? 'unknown';
-                    }
-                    if (isset($lines[1])) {
-                        $date = $lines[1];
-                    }
-                    if (isset($lines[2]) && preg_match('/[0-9a-f]{7,}/i', $lines[2])) {
-                        $hash = $lines[2];
-                    }
-                }
-            }
-        }
-
-        return [
-            'version' => $version,
-            'date' => $date,
-            'hash' => $hash,
-        ];
     }
 
 

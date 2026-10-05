@@ -27,10 +27,14 @@ version:
 	GIT_SUBJECT=$$(git log --oneline --format=%B -n 1 HEAD 2>/dev/null | head -n 1 || echo "no commit"); \
 	GIT_DATE=$$(git log --oneline --format="%at" -n 1 HEAD 2>/dev/null | xargs -I{} date -d @{} +%Y-%m-%d 2>/dev/null || echo "unknown"); \
 	APP_VERSION="Version: $${GIT_SUBJECT} #$${GIT_HASH} ($${GIT_DATE})"; \
-	echo "$${GIT_SUBJECT}" > $${VERSION_DIR}/_version; \
-	echo "$${GIT_DATE}"   >> $${VERSION_DIR}/_version; \
-	echo "$${GIT_HASH}"   >> $${VERSION_DIR}/_version; \
-	echo "$${APP_VERSION}" >> $${VERSION_DIR}/_version
+	VERSION_JSON=$$(jq -n \
+		--arg tag     "$${GIT_TAG}" \
+		--arg hash    "$${GIT_HASH}" \
+		--arg subject "$${GIT_SUBJECT}" \
+		--arg date    "$${GIT_DATE}" \
+		--arg app     "$${APP_VERSION}" \
+		'{tag: $$tag, hash: $$hash, subject: $$subject, date: $$date, app_version: $$app}'); \
+	echo "$${VERSION_JSON}" > $${VERSION_DIR}/_version.json;
 
 # ------------------------------------------------
 # Add the following 'help' target to your makefile, add help text after each target name starting with '\#\#'

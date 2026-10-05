@@ -93,6 +93,40 @@ final class Auth
         return false;
     }
 
+    /**
+     * Защищена ли папка (любой путь, начинающийся с защищённого префикса-папки).
+     */
+    public function protectsFolder(string $relative): bool
+    {
+        if (!$this->isEnabled()) {
+            return false;
+        }
+
+        $files = $this->rules['files'] ?? [];
+        if (!is_array($files) || $files === []) {
+            return false;
+        }
+
+        $relative = Path::key($relative);
+
+        foreach ($files as $pattern) {
+            $pattern = Path::key((string)$pattern);
+
+            if ($pattern === '') {
+                continue;
+            }
+
+            if (str_ends_with($pattern, '/')) {
+                if ($relative === rtrim($pattern, '/') || str_starts_with($relative, $pattern)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+
     public function isLogoutRequested(): bool
     {
         return $this->request->query('logout') !== null;

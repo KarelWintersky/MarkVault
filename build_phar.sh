@@ -110,7 +110,14 @@ GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_SUBJECT=$(git log --oneline --format=%B -n 1 HEAD 2>/dev/null | head -n 1 || echo "no commit")
 GIT_DATE=$(git log --oneline --format="%at" -n 1 HEAD 2>/dev/null | xargs -I{} date -d @{} +%Y-%m-%d 2>/dev/null || echo "unknown")
 APP_VERSION="Version: ${GIT_SUBJECT} #${GIT_HASH} (${GIT_DATE})"
-echo "   $APP_VERSION"
+VERSION_JSON=$(jq -n \
+    --arg tag     "$GIT_TAG" \
+    --arg hash    "$GIT_HASH" \
+    --arg subject "$GIT_SUBJECT" \
+    --arg date    "$GIT_DATE" \
+    --arg app     "$APP_VERSION" \
+    '{tag: $tag, hash: $hash, subject: $subject, date: $date, app_version: $app}')
+echo "$VERSION_JSON"
 
 echo "Running build..."
 
@@ -121,22 +128,15 @@ if ! docker run --rm \
     -v "$(pwd)":/app \
     -e HOST_UID=$CURRENT_UID \
     -e HOST_GID=$CURRENT_GID \
-    -e GIT_TAG="$GIT_TAG" \
-    -e GIT_HASH="$GIT_HASH" \
-    -e GIT_SUBJECT="$GIT_SUBJECT" \
-    -e GIT_DATE="$GIT_DATE" \
-    -e APP_VERSION="$APP_VERSION" \
+    -e VERSION_JSON="$VERSION_JSON" \
     "$IMAGE_NAME" sh -c "
         echo '   Installing dependencies...' && \
         composer install -vvv --no-dev --optimize-autoloader --classmap-authoritative --no-interaction --ignore-platform-req=ext-redis && \
         echo '   Generating version file...' && \
         mkdir -p $VERSION_DIR && \
-        echo \"\$GIT_SUBJECT\"    > $VERSION_DIR/_version && \
-        echo \"\$GIT_DATE\"      >> $VERSION_DIR/_version && \
-        echo \"\$GIT_HASH\"      >> $VERSION_DIR/_version && \
-        echo \"\$APP_VERSION\"      >> $VERSION_DIR/_version && \
-        echo '   Version file written to $VERSION_DIR/_version' && \
-        chown \${HOST_UID}:\${HOST_GID} $VERSION_DIR/_version && \
+        printf '%s\n' \${VERSION_JSON} > $VERSION_DIR/_version.json && \
+        echo '   Version file written to $VERSION_DIR/_version.json' && \
+        chown \${HOST_UID}:\${HOST_GID} $VERSION_DIR/_version.json && \
         echo '   Compiling PHAR...' && \
         box compile && \
         chown \${HOST_UID}:\${HOST_GID} /app/$BOX_OUTPUT && \

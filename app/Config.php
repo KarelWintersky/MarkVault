@@ -251,7 +251,7 @@ final class Config
         $section = $this->get('theme', []);
         $default = is_array($section) ? ($section['default'] ?? self::DARK) : self::DARK;
 
-        return in_array($default, [self::DARK, self::LIGHT], true) ? (string)$default : self::DARK;
+        return in_array($default, [self::DARK, self::LIGHT], true) ? $default : self::DARK;
     }
 
     /**
