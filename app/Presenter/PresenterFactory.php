@@ -11,7 +11,7 @@ use InvalidArgumentException;
  *
  * Использование:
  *   $factory = new PresenterFactory(__DIR__ . '/templates');
- *   $tpl = $factory->create('simplest');
+ *   $tpl = $factory->create('simplest', 'mdshelf');
  *   echo $tpl->render('page', $vars);
  *
  * Имя движка приходит из конфига («template.engine»), поэтому подключить
@@ -26,10 +26,19 @@ final class PresenterFactory
     ) {
     }
 
-    public function create(string $name): PresenterInterface
+    /**
+     * @param string $name движок («template.engine»)
+     * @param string $dir  каталог внутри templates/ («template.dir»)
+     */
+    public function create(string $name, string $dir = self::SIMPLEST): PresenterInterface
     {
+        $dir = str_replace(['..', "\0"], '', $dir);
+        if ($dir === '') {
+            $dir = self::SIMPLEST;
+        }
+
         return match (strtolower($name)) {
-            self::SIMPLEST => new Simplest($this->templateDir . '/simplest'),
+            self::SIMPLEST => new Simplest($this->templateDir . '/' . $dir),
             default => throw new InvalidArgumentException("Unknown template engine: {$name}"),
         };
     }

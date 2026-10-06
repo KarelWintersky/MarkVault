@@ -22,7 +22,7 @@ use App\Units\Request;
  */
 final class Application
 {
-    public static Version $VERSION;
+    public static ?Version $VERSION = null;
 
     public Config $config;
     public Content $content;
@@ -47,6 +47,8 @@ final class Application
         ?Request $request = null,
         ?string $configFile = null,
     ) {
+        self::$VERSION = Version::fromFile(dirname(__DIR__) . '/vendor/_version.json');
+
         $this->request = $request ?? Request::fromGlobals();
         $this->config = Config::load($baseDir, $configFile);
         $this->content = new Content($this->config, $this->contentDir());
@@ -55,11 +57,16 @@ final class Application
         $this->templateDir = dirname(__DIR__) . '/templates';
         $this->templateName = 'page';
 
+        // Каталог шаблона по умолчанию совпадает с именем темы, но его можно
+        // задать отдельно: палитра и вёрстка — независимые вещи.
+        $templateDir = $this->config->string('template.dir', $this->config->useTheme());
+
         $this->templates = $templates ?? (new PresenterFactory($this->templateDir))->create(
-            $this->config->string('template.engine', PresenterFactory::SIMPLEST)
+            $this->config->string('template.engine', PresenterFactory::SIMPLEST),
+            $templateDir
         );
 
-        self::$VERSION = Version::fromFile(dirname(__DIR__) . '/vendor/_version.json');
+
     }
 
     /**

@@ -70,8 +70,18 @@ sort:
     - "Deepseek/"
 
 theme:
-  use: simplest
-  default: dark
+  # Палитра из app/Config.php (themes.<name>) и, если не задан template.dir,
+  # одноимённый каталог в templates/.
+  #   simplest — синяя тема по умолчанию, вёрстка templates/simplest/
+  #   mdshelf  — палитра и вёрстка из MDShelf, templates/mdshelf/
+  use: "mdshelf"
+  default: simplest
+
+# Каталог шаблона внутри templates/. Раскомментируй, чтобы развести
+# палитру и вёрстку: например, палитра mdshelf на старой вёрстке.
+# По умолчанию равен theme.use.
+# template:
+#   dir: simplest
 
 # 🔒 Защита файлов паролем.
 # Если секция отсутствует или пуста — защита отключена целиком.

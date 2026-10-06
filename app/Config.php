@@ -45,6 +45,16 @@ final class Config
         'accent' => '--accent',
         'code_bg' => '--code-bg',
         'border' => '--border',
+        // Токены темы mdshelf. Простые темы этих ключей не задают —
+        // toCssVariables() пропускает отсутствующие, поэтому карта общая.
+        'surface' => '--surface',
+        'surface_hover' => '--surface-hover',
+        'text_heading' => '--text-heading',
+        'accent_hover' => '--accent-hover',
+        'accent_soft' => '--accent-soft',
+        'border_subtle' => '--border-subtle',
+        'shadow_sm' => '--shadow-sm',
+        'shadow_lg' => '--shadow-lg',
     ];
 
     private function __construct(private readonly AppConfig $raw)
@@ -115,6 +125,40 @@ final class Config
                         'accent' => '#0366d6',
                         'code_bg' => '#f6f8fa',
                         'border' => '#e1e4e8',
+                    ],
+                ],
+                'mdshelf' => [
+                    'dark' => [
+                        'bg' => '#09090b',
+                        'panel' => '#18181b',
+                        'surface' => '#18181b',
+                        'surface_hover' => '#27272a',
+                        'text' => '#9e9ea8',
+                        'text_heading' => '#d4d4d8',
+                        'muted' => '#71717a',
+                        'accent' => '#10b981',
+                        'accent_hover' => '#34d399',
+                        'accent_soft' => 'rgba(16, 185, 129, 0.15)',
+                        'border' => '#27272a',
+                        'border_subtle' => '#18181b',
+                        'shadow_sm' => '0 1px 2px rgba(0, 0, 0, 0.8)',
+                        'shadow_lg' => '0 20px 25px -5px rgba(0, 0, 0, 0.8), 0 10px 10px -5px rgba(0, 0, 0, 0.6)',
+                    ],
+                    'light' => [
+                        'bg' => '#ffffff',
+                        'panel' => '#fafafa',
+                        'surface' => '#fafafa',
+                        'surface_hover' => '#f4f4f5',
+                        'text' => '#3f3f46',
+                        'text_heading' => '#09090b',
+                        'muted' => '#71717a',
+                        'accent' => '#059669',
+                        'accent_hover' => '#047857',
+                        'accent_soft' => 'rgba(5, 150, 105, 0.08)',
+                        'border' => '#e4e4e7',
+                        'border_subtle' => '#f4f4f5',
+                        'shadow_sm' => '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                        'shadow_lg' => '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05)',
                     ],
                 ],
             ]

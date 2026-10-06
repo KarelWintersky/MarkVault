@@ -143,7 +143,6 @@ if ! docker run --rm \
         echo '   Smoke test...' && \
         php /app/$BOX_OUTPUT --version && \
         echo '   Smoke test passed' && \
-        rm $VERSION_DIR/_version && \
         echo 'Done!'
     "
 then

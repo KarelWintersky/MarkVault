@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\DTO\Version;
 use Arris\Toolkit\CLI\OptionType;
 use Arris\Toolkit\CLIConsole;
 use Arris\Toolkit\CLIRunner;
@@ -98,6 +99,8 @@ final class Helper
     {
         $cli = new CLIRunner(self::description());
 
+        Application::$VERSION = Version::fromFile(dirname(__DIR__) . '/vendor/_version.json');
+
         $cli->register(
             option: 'config',
             short: 'c',
@@ -143,7 +146,7 @@ final class Helper
     /** Описание для справки: разметку разворачивает CLIConsole. */
     private static function description(): string
     {
-    $version = Application::$VERSION->appVersion;
+        $version = Version::fromFile(dirname(__DIR__) . '/vendor/_version.json')->appVersion;
 
         return <<<TEXT
 <font color='cyan'>MarkVault</font> — просмотрщик Markdown-каталога.
