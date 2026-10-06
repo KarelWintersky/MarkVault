@@ -6,6 +6,8 @@ namespace App;
 use App\DTO\Document;
 use App\DTO\Page;
 use App\DTO\Version;
+use App\Presenter\PresenterFactory;
+use App\Presenter\PresenterInterface;
 use App\Render\Content;
 use App\Render\Markdown;
 use App\Render\Navigation;
@@ -20,13 +22,20 @@ use App\Units\Request;
  */
 final class Application
 {
-    public static string $TEMPLATE = '';
     public static Version $VERSION;
 
     public Config $config;
     public Content $content;
     public Auth $auth;
     public Request $request;
+
+    /**
+     * Presenter Factory
+     * @var PresenterInterface
+     */
+    public $templates;
+    private string $templateDir;
+    private string $templateName;
 
     /**
      * @param string $baseDir корень приложения — каталог с index.php
@@ -43,7 +52,13 @@ final class Application
         $this->content = new Content($this->config, $this->contentDir());
         $this->auth = new Auth($this->config, $this->request);
 
-        self::$TEMPLATE = dirname(__DIR__) . '/templates/simplest/template.php';
+        $this->templateDir = dirname(__DIR__) . '/templates';
+        $this->templateName = 'page';
+
+        $this->templates = $templates ?? (new PresenterFactory($this->templateDir))->create(
+            $this->config->string('template.engine', PresenterFactory::SIMPLEST)
+        );
+
         self::$VERSION = Version::fromFile(dirname(__DIR__) . '/vendor/_version.json');
     }
 
@@ -125,41 +140,42 @@ final class Application
     private function renderTemplate(Page $page, Navigation $nav): string
     {
         $auth = $page->auth;
-        $protectionEnabled = $auth->isEnabled();
-        $isAuthorized = $page->isAuthorized;
-
-        $siteTitle = $page->siteTitle;
-        $navTitle = $page->navTitle;
-        $title = $page->title !== '' ? $page->title : $siteTitle;
-        $debugInfo = $page->notice;
-        $hasDocuments = $page->hasDocuments;
-
         $current = $page->current;
-        $content = $page->content;
-        $breadcrumbs = $page->breadcrumbs;
 
-        $tree = $nav->render(
-            $page->tree,
-            $current !== null ? $current->relative : '',
-        );
+        return $this->templates->render($this->templateName, [
+            // Объекты целиком — шаблон сам достанет нужное
+            'page'   => $page,
+            'nav'    => $nav,
+            'auth'   => $auth,
+            'config' => $page->config,
+            'build'  => self::$VERSION,
 
-        $darkVars = $page->config->dark();
-        $lightVars = $page->config->light();
-        $defaultTheme = $page->config->defaultTheme();
+            // Вычисленное на сервере
+            'tree' => $nav->render(
+                $page->tree,
+                $current !== null ? $current->relative : '',
+            ),
 
-        $saveToLocalStorage = $page->savePasswordToStorage;
-        $submittedPassword = $page->submittedPassword;
+            'protectionEnabled' => $auth->isEnabled(),
+            'isAuthorized'      => $page->isAuthorized,
+            'hasDocuments'      => $page->hasDocuments,
+            'current'           => $current,
+            'content'           => $page->content,
+            'breadcrumbs'       => $page->breadcrumbs,
 
-        $foldersRemember = $page->config->foldersRemember();
+            'darkVars'     => $page->config->dark(),
+            'lightVars'    => $page->config->light(),
+            'defaultTheme' => $page->config->defaultTheme(),
 
-        $buildVersion = Application::$VERSION->appVersion;
-        $buildDate = Application::$VERSION->date;
-        $buildHash = Application::$VERSION->hash;
+            'saveToLocalStorage' => $page->savePasswordToStorage,
+            'submittedPassword'  => $page->submittedPassword,
+            'foldersRemember'    => $page->config->foldersRemember(),
 
-        ob_start();
-        require self::$TEMPLATE;
-
-        return (string)ob_get_clean();
+            'siteTitle' => $page->siteTitle,
+            'navTitle'  => $page->navTitle,
+            'title'     => $page->title !== '' ? $page->title : $page->siteTitle,
+            'debugInfo' => $page->notice,
+        ]);
     }
 
     /**
