@@ -21,7 +21,7 @@ update:		##@build Update project from GIT
 	git pull --no-rebase
 
 version:
-	VERSION_DIR=vendor; \
+	@VERSION_DIR=vendor; \
 	GIT_TAG=$$(git describe --tags --always 2>/dev/null || echo "0.0.0"); \
 	GIT_HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
 	GIT_SUBJECT=$$(git log --oneline --format=%B -n 1 HEAD 2>/dev/null | head -n 1 || echo "no commit"); \

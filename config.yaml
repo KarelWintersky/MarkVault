@@ -75,7 +75,7 @@ theme:
   #   simplest — синяя тема по умолчанию, вёрстка templates/simplest/
   #   mdshelf  — палитра и вёрстка из MDShelf, templates/mdshelf/
   use: "mdshelf"
-  default: simplest
+  default: light
 
 # Каталог шаблона внутри templates/. Раскомментируй, чтобы развести
 # палитру и вёрстку: например, палитра mdshelf на старой вёрстке.

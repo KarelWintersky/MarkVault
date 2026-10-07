@@ -53,6 +53,7 @@ final class Config
         'accent_hover' => '--accent-hover',
         'accent_soft' => '--accent-soft',
         'border_subtle' => '--border-subtle',
+        'shadow' => '--shadow',
         'shadow_sm' => '--shadow-sm',
         'shadow_lg' => '--shadow-lg',
     ];
@@ -141,6 +142,7 @@ final class Config
                         'accent_soft' => 'rgba(16, 185, 129, 0.15)',
                         'border' => '#27272a',
                         'border_subtle' => '#18181b',
+                        'shadow' => '0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.5)',
                         'shadow_sm' => '0 1px 2px rgba(0, 0, 0, 0.8)',
                         'shadow_lg' => '0 20px 25px -5px rgba(0, 0, 0, 0.8), 0 10px 10px -5px rgba(0, 0, 0, 0.6)',
                     ],
@@ -157,6 +159,7 @@ final class Config
                         'accent_soft' => 'rgba(5, 150, 105, 0.08)',
                         'border' => '#e4e4e7',
                         'border_subtle' => '#f4f4f5',
+                        'shadow' => '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
                         'shadow_sm' => '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                         'shadow_lg' => '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05)',
                     ],

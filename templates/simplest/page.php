@@ -286,6 +286,18 @@
         }
 
     </style>
+    <script>
+        (function() {
+            var root = document.documentElement;
+            try {
+                var theme = localStorage.getItem("theme");
+                if (theme !== "dark" && theme !== "light") {
+                    theme = <?= json_encode($defaultTheme) ?>;
+                }
+                root.setAttribute("data-theme", theme);
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body data-folders-remember="<?= htmlspecialchars($foldersRemember, ENT_QUOTES, 'UTF-8') ?>">
 <nav>
