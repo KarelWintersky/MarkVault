@@ -50,22 +50,24 @@ final readonly class Version implements \JsonSerializable
     public static function fromFile(string $path): self
     {
         if (!is_file($path) || !is_readable($path)) {
-            return self::localDev();
+            return self::localDev('unreadable');
         }
 
         $contents = @file_get_contents($path);
         if ($contents === false) {
-            return self::localDev();
+            return self::localDev('file_get_contents');
         }
 
         try {
             $data = json_decode($contents, true, flags: JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            return self::localDev();
+            return self::localDev('json_decode');
         }
 
+        $data['app_version'] = "Version: {$data['subject']}, #{$data['hash']} ({$data['date']})";
+
         if (!is_array($data) || !self::hasRequiredKeys($data)) {
-            return self::localDev();
+            return self::localDev('is_array | hasRequiredKeys');
         }
 
         return self::fromArray($data);

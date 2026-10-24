@@ -26,14 +26,12 @@ version:
 	GIT_HASH=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
 	GIT_SUBJECT=$$(git log --oneline --format=%B -n 1 HEAD 2>/dev/null | head -n 1 || echo "no commit"); \
 	GIT_DATE=$$(git log --oneline --format="%at" -n 1 HEAD 2>/dev/null | xargs -I{} date -d @{} +%Y-%m-%d 2>/dev/null || echo "unknown"); \
-	APP_VERSION="Version: $${GIT_SUBJECT} #$${GIT_HASH} ($${GIT_DATE})"; \
 	VERSION_JSON=$$(jq -n \
 		--arg tag     "$${GIT_TAG}" \
 		--arg hash    "$${GIT_HASH}" \
 		--arg subject "$${GIT_SUBJECT}" \
 		--arg date    "$${GIT_DATE}" \
-		--arg app     "$${APP_VERSION}" \
-		'{tag: $$tag, hash: $$hash, subject: $$subject, date: $$date, app_version: $$app}'); \
+		'{tag: $$tag, hash: $$hash, subject: $$subject, date: $$date'}); \
 	echo "$${VERSION_JSON}" > $${VERSION_DIR}/_version.json;
 
 # ------------------------------------------------
