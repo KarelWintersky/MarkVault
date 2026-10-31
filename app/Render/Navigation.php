@@ -153,7 +153,8 @@ final class Navigation
         $isActive = $currentRelative !== '' && $document->relative === $currentRelative;
         $activeClass = $isActive ? ' class="active"' : '';
 
-        $locked = $this->auth->protects($document->relative) && !$this->isAuthorized;
+        $protected = $this->auth->protects($document->relative);
+        $locked = $protected && !$this->isAuthorized;
 
         $relative = self::escape($document->relative);
         $href = '?file=' . $relative;
@@ -164,9 +165,14 @@ final class Navigation
         // data-protected нужен JS для перехвата клика.
         $dataAttr = $locked ? ' data-protected="1" data-file="' . $relative . '"' : '';
 
-        $lockBadge = $locked
-            ? ' <span class="lock-badge" title="Защищено">' . $this->auth->lockIcon() . '</span>'
-            : '';
+        // После входа защищённый документ остаётся помеченным открытым
+        // замком: так видно, что он относится к защищённой группе.
+        $lockBadge = '';
+        if ($locked) {
+            $lockBadge = ' <span class="lock-badge" title="Защищено">' . $this->auth->lockIcon() . '</span>';
+        } elseif ($protected) {
+            $lockBadge = ' <span class="lock-badge is-open" title="Защищено, доступ открыт">' . $this->auth->unlockIcon() . '</span>';
+        }
 
         return "{$indent}<li{$liClass}><a href=\"{$href}\"{$activeClass}{$dataAttr}>{$label}{$lockBadge}</a></li>";
     }

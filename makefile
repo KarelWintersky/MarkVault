@@ -12,6 +12,9 @@ DEVELOPER_NAME = "Karel Wintersky"
 help:
 	@perl -e '$(HELP_ACTION)' $(MAKEFILE_LIST)
 
+local:
+	@php -S 127.0.0.1:8080 index.php
+
 phar:		##@build Build PHAR
 	@echo Building PHAR
 	bash build_phar.sh
