@@ -534,46 +534,56 @@
 </script>
 <script data-name="auth">
     (function(){
-        const modal     = document.getElementById('authModal');
-        const modalForm = document.getElementById('authFormModal');
-        const redirectF = document.getElementById('redirectFile');
-        const modalPwd  = document.getElementById('modalPassword');
-        const cancel    = document.getElementById('modalCancel');
+        // Модалка стоит ниже скрипта в разметке — ищем элементы после
+        // разбора документа, иначе getElementById вернёт null.
+        const init = () => {
+            const modal     = document.getElementById('authModal');
+            const redirectF = document.getElementById('redirectFile');
+            const modalPwd  = document.getElementById('modalPassword');
+            const cancel    = document.getElementById('modalCancel');
 
-        // Перехват кликов по защищённым ссылкам
-        document.querySelectorAll('nav a[data-protected="1"]').forEach(a => {
-            a.addEventListener('click', e => {
-                e.preventDefault();
-                if (!modal) return;
-                redirectF.value = a.dataset.file || '';
-                modal.hidden = false;
-                setTimeout(() => modalPwd && modalPwd.focus(), 30);
+            // Перехват кликов по защищённым ссылкам
+            document.querySelectorAll('nav a[data-protected="1"]').forEach(a => {
+                a.addEventListener('click', e => {
+                    e.preventDefault();
+                    if (!modal) return;
+                    if (redirectF) redirectF.value = a.dataset.file || '';
+                    modal.hidden = false;
+                    setTimeout(() => modalPwd && modalPwd.focus(), 30);
+                });
             });
-        });
 
-        if (cancel) {
-            cancel.addEventListener('click', () => { modal.hidden = true; });
-        }
-        if (modal) {
-            modal.addEventListener('click', e => {
-                if (e.target === modal) modal.hidden = true;
-            });
-            document.addEventListener('keydown', e => {
-                if (e.key === 'Escape' && !modal.hidden) modal.hidden = true;
-            });
-        }
+            if (cancel) {
+                cancel.addEventListener('click', () => { modal.hidden = true; });
+            }
+            if (modal) {
+                modal.addEventListener('click', e => {
+                    if (e.target === modal) modal.hidden = true;
+                });
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'Escape' && !modal.hidden) modal.hidden = true;
+                });
+            }
 
-        // Автозаполнение формы из localStorage (fallback, если куки отключены)
-        const saved = localStorage.getItem('md_docs_auth');
-        if (saved) {
-            const topInput = document.querySelector('#authFormTop input[name="password"]');
-            if (topInput && !topInput.value) topInput.value = saved;
-        }
+            // Автозаполнение формы из localStorage (fallback, если куки отключены)
+            const saved = localStorage.getItem('md_docs_auth');
+            if (saved) {
+                const topInput = document.querySelector('#authFormTop input[name="password"]');
+                if (topInput && !topInput.value) topInput.value = saved;
+                if (modalPwd && !modalPwd.value) modalPwd.value = saved;
+            }
 
-        // Если сервер только что сохранил пароль — дублируем в localStorage
-        <?php if (!empty($saveToLocalStorage)): ?>
-        try { localStorage.setItem('md_docs_auth', <?= json_encode($submittedPassword) ?>); } catch(e) {}
-        <?php endif; ?>
+            // Если сервер только что сохранил пароль — дублируем в localStorage
+            <?php if (!empty($saveToLocalStorage)): ?>
+            try { localStorage.setItem('md_docs_auth', <?= json_encode($submittedPassword) ?>); } catch(e) {}
+            <?php endif; ?>
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init, { once: true });
+        } else {
+            init();
+        }
     })();
 </script>
 

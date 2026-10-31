@@ -898,6 +898,11 @@
             <button type="button" class="icon-button toc-toggle" id="toc-open" aria-controls="toc-panel" aria-expanded="false" aria-label="На этой странице" title="На этой странице">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
             </button>
+            <?php if ($protectionEnabled && !$isAuthorized): ?>
+                <button type="button" class="icon-button auth-toggle" id="auth-open" aria-label="Войти" title="Войти" aria-haspopup="dialog" aria-controls="authModal">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                </button>
+            <?php endif; ?>
             <button type="button" class="icon-button theme-toggle" id="theme-toggle" aria-label="Переключить тему" title="Переключить тему">
                 <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                 <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -908,16 +913,9 @@
     <div class="doc-frame">
         <aside class="doc-sidebar" id="sidebar-panel" aria-label="Навигация">
             <div class="doc-sidebar-inner">
-                <?php if ($protectionEnabled): ?>
+                <?php if ($protectionEnabled && $isAuthorized): ?>
                     <div class="sidebar-auth">
-                        <?php if (!$isAuthorized): ?>
-                            <form method="post" class="auth-form" id="authFormTop">
-                                <input type="password" name="password" placeholder="<?= htmlspecialchars($auth->passwordFieldPlaceholder(), ENT_QUOTES, 'UTF-8') ?>" autocomplete="current-password">
-                                <button type="submit">Войти</button>
-                            </form>
-                        <?php else: ?>
-                            <a class="logout-link" href="?logout=1">Выйти 🔓</a>
-                        <?php endif; ?>
+                        <a class="logout-link" href="?logout=1">Выйти 🔓</a>
                     </div>
                 <?php endif; ?>
 
@@ -1288,42 +1286,61 @@
 
 <script data-name="auth">
     (function(){
-        const modal     = document.getElementById('authModal');
-        const redirectF = document.getElementById('redirectFile');
-        const modalPwd  = document.getElementById('modalPassword');
-        const cancel    = document.getElementById('modalCancel');
+        // Модалка стоит в разметке ниже этого скрипта, поэтому ищем её после
+        // разбора документа: иначе getElementById вернёт null и клик по
+        // ключу будет молча ничего не делать.
+        const init = () => {
+            const modal     = document.getElementById('authModal');
+            const redirectF = document.getElementById('redirectFile');
+            const modalPwd  = document.getElementById('modalPassword');
+            const cancel    = document.getElementById('modalCancel');
+            const authOpen  = document.getElementById('auth-open');
 
-        document.querySelectorAll('nav a[data-protected="1"]').forEach(a => {
-            a.addEventListener('click', e => {
-                e.preventDefault();
+            const openModal = (file) => {
                 if (!modal) return;
-                redirectF.value = a.dataset.file || '';
+                if (redirectF) redirectF.value = file || '';
                 modal.hidden = false;
                 setTimeout(() => modalPwd && modalPwd.focus(), 30);
-            });
-        });
+            };
 
-        if (cancel) {
-            cancel.addEventListener('click', () => { modal.hidden = true; });
-        }
-        if (modal) {
-            modal.addEventListener('click', e => {
-                if (e.target === modal) modal.hidden = true;
+            document.querySelectorAll('nav a[data-protected="1"]').forEach(a => {
+                a.addEventListener('click', e => {
+                    e.preventDefault();
+                    openModal(a.dataset.file || '');
+                });
             });
-            document.addEventListener('keydown', e => {
-                if (e.key === 'Escape' && !modal.hidden) modal.hidden = true;
-            });
-        }
 
-        const saved = localStorage.getItem('md_docs_auth');
-        if (saved) {
-            const topInput = document.querySelector('#authFormTop input[name="password"]');
-            if (topInput && !topInput.value) topInput.value = saved;
-        }
+            if (authOpen) {
+                authOpen.addEventListener('click', () => openModal(''));
+            }
 
-        <?php if (!empty($saveToLocalStorage)): ?>
-        try { localStorage.setItem('md_docs_auth', <?= json_encode($submittedPassword) ?>); } catch(e) {}
-        <?php endif; ?>
+            if (cancel) {
+                cancel.addEventListener('click', () => { modal.hidden = true; });
+            }
+            if (modal) {
+                modal.addEventListener('click', e => {
+                    if (e.target === modal) modal.hidden = true;
+                });
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'Escape' && !modal.hidden) modal.hidden = true;
+                });
+            }
+
+            const saved = localStorage.getItem('md_docs_auth');
+            if (saved && modalPwd && !modalPwd.value) {
+                modalPwd.value = saved;
+            }
+
+            <?php if (!empty($saveToLocalStorage)): ?>
+            try { localStorage.setItem('md_docs_auth', <?= json_encode($submittedPassword) ?>); } catch(e) {}
+            <?php endif; ?>
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init, { once: true });
+        } else {
+            init();
+        }
     })();
 </script>
 
