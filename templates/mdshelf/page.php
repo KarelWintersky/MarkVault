@@ -49,7 +49,7 @@
             --font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             --mono: ui-monospace, "SFMono-Regular", SF Mono, Menlo, Consolas, "Liberation Mono", monospace;
         }
-        @media (max-width: 1099px) {
+        @media (max-width: 1023px) {
             :root {
                 --safe-top: env(safe-area-inset-top, 0px);
                 --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -126,7 +126,9 @@
         .theme-toggle .moon-icon { display: none; }
         html[data-theme="light"] .theme-toggle .sun-icon { display: none; }
         html[data-theme="light"] .theme-toggle .moon-icon { display: block; }
-        @media (min-width: 1100px) { .nav-toggle { display: none; } }
+        @media (min-width: 1024px) { .nav-toggle { display: none; } }
+        /* На десктопе оглавление уже стоит справа — кнопка в шапке лишняя. */
+        @media (min-width: 1280px) { .toc-toggle { display: none; } }
 
         /* ─── Шапка ────────────────────────────────────────────────────── */
         .doc-header {
@@ -212,7 +214,7 @@
             width: 100%;
             flex: 1;
         }
-        @media (min-width: 1100px) {
+        @media (min-width: 1024px) {
             .doc-frame {
                 grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
                 align-items: start;
@@ -263,7 +265,7 @@
         }
         .doc-backdrop[hidden] { opacity: 0; pointer-events: none; display: block; }
 
-        @media (min-width: 1100px) {
+        @media (min-width: 1024px) {
             .doc-sidebar {
                 position: sticky;
                 top: calc(var(--header-h) + var(--safe-top));
