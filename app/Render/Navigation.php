@@ -165,16 +165,21 @@ final class Navigation
         // data-protected нужен JS для перехвата клика.
         $dataAttr = $locked ? ' data-protected="1" data-file="' . $relative . '"' : '';
 
-        // После входа защищённый документ остаётся помеченным открытым
-        // замком: так видно, что он относится к защищённой группе.
+        // Иконки берутся из SVG-спрайта templates/icons.php. Цвет —
+        // currentColor, поэтому замок наследует цвет ссылки в любой теме.
         $lockBadge = '';
         if ($locked) {
-            $lockBadge = ' <span class="lock-badge" title="Защищено">' . $this->auth->lockIcon() . '</span>';
+            $lockBadge = sprintf(' <span class="lock-badge" title="Защищено">%s</span>', self::icon('mv-icon-lock'));
         } elseif ($protected) {
-            $lockBadge = ' <span class="lock-badge is-open" title="Защищено, доступ открыт">' . $this->auth->unlockIcon() . '</span>';
+            $lockBadge = sprintf(' <span class="lock-badge is-open" title="Защищено, доступ открыт">%s</span>', self::icon('mv-icon-lock-off'));
         }
 
         return "{$indent}<li{$liClass}><a href=\"{$href}\"{$activeClass}{$dataAttr}>{$label}{$lockBadge}</a></li>";
+    }
+
+    private static function icon(string $id): string
+    {
+        return sprintf('<svg class="lock-icon" width="12" height="12" aria-hidden="true"><use href="#%s"></use></svg>', $id);
     }
 
     private static function escape(string $value): string

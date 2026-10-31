@@ -241,6 +241,7 @@
             margin-left: 4px;
             opacity: 0.9;
         }
+        .lock-badge svg { display: inline-block; vertical-align: -1px; }
 
         /* Модалка */
         .modal-overlay {
@@ -300,6 +301,7 @@
     </script>
 </head>
 <body data-folders-remember="<?= htmlspecialchars($foldersRemember, ENT_QUOTES, 'UTF-8') ?>">
+<?php require __DIR__ . '/../icons.php'; ?>
 <nav>
     <h2><?= htmlspecialchars($navTitle, ENT_QUOTES, 'UTF-8') ?></h2>
 

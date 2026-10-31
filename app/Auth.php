@@ -23,6 +23,7 @@ final class Auth
     public const COOKIE_LIFETIME = 2592000;
     public const TOKEN_HEADER = 'HTTP_X_AUTH_TOKEN';
 
+
     /** @var array<string,mixed> секция «protected» */
     private readonly array $rules;
 
@@ -177,20 +178,6 @@ final class Auth
     public function forget(): void
     {
         $this->setCookie('', time() - 3600);
-    }
-
-    public function lockIcon(): string
-    {
-        return (string)($this->rules['lock_icon'] ?? '🔒');
-    }
-
-    /**
-     * Иконка защищённого файла после входа: замок открыт, но пометка
-     * остаётся, чтобы было видно, что документ относится к защищённым.
-     */
-    public function unlockIcon(): string
-    {
-        return (string)($this->rules['unlock_icon'] ?? '🔓');
     }
 
     /**

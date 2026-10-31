@@ -350,6 +350,7 @@
         .sidebar-nav li.locked > summary { opacity: 0.75; }
 
         .lock-badge { font-size: 11px; margin-left: 4px; opacity: 0.9; }
+        .lock-badge svg { display: inline-block; vertical-align: -1px; }
 
         /* ─── Форма входа в сайдбаре ───────────────────────────────────── */
         .sidebar-auth { margin-bottom: 14px; }
@@ -880,6 +881,7 @@
     </script>
 </head>
 <body data-folders-remember="<?= htmlspecialchars($foldersRemember, ENT_QUOTES, 'UTF-8') ?>">
+<?php require __DIR__ . '/../icons.php'; ?>
 <div class="doc-shell" id="docShell">
 
     <header class="doc-header" id="docHeader">
@@ -896,22 +898,22 @@
 
         <div class="doc-header-actions">
             <button type="button" class="icon-button toc-toggle" id="toc-open" aria-controls="toc-panel" aria-expanded="false" aria-label="На этой странице" title="На этой странице">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                <svg width="16" height="16" aria-hidden="true"><use href="#mv-icon-toc"></use></svg>
             </button>
             <?php if ($protectionEnabled): ?>
                 <?php if ($isAuthorized): ?>
                     <a class="icon-button auth-toggle" id="auth-logout" href="?logout=1" aria-label="Выйти" title="Выйти">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <svg width="18" height="18" aria-hidden="true"><use href="#mv-icon-log-out"></use></svg>
                     </a>
                 <?php else: ?>
                     <button type="button" class="icon-button auth-toggle" id="auth-open" aria-label="Войти" title="Войти" aria-haspopup="dialog" aria-controls="authModal">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                        <svg width="18" height="18" aria-hidden="true"><use href="#mv-icon-key"></use></svg>
                     </button>
                 <?php endif; ?>
             <?php endif; ?>
             <button type="button" class="icon-button theme-toggle" id="theme-toggle" aria-label="Переключить тему" title="Переключить тему">
-                <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                <svg class="sun-icon" width="18" height="18" aria-hidden="true"><use href="#mv-icon-sun"></use></svg>
+                <svg class="moon-icon" width="18" height="18" aria-hidden="true"><use href="#mv-icon-moon"></use></svg>
             </button>
         </div>
     </header>
