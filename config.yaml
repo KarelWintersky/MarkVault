@@ -25,6 +25,27 @@ content:
   # Ветка с открытым документом раскрывается в любом режиме.
   folders_remember: single
 
+# Каталоги ассетов: картинки, CSS, шрифты. Без этой секции каталог
+# content/assets уже доступен по адресу /assets.
+#
+# Форматы:
+#   assets:
+#     paths:            # список — каждый каталог монтируется под своим именем
+#       - assets        # content/assets        → /assets
+#       - /var/www/img  # /var/www/img          → /img
+#
+#   assets:
+#     paths:            # карта «URL-префикс → каталог»
+#       "/assets": "assets"
+#       "/img": "/var/www/shared/images"
+#
+# Относительный путь разрешается от каталога контента, абсолютный берётся
+# как есть. Файлы отдаёт сам MarkVault (в том числе из PHAR), поэтому nginx
+# не должен перехватывать эти URL отдельным location.
+# assets:
+#   paths:
+#     - assets
+
 titles:
   # === Основной корпус (00–14) ===
   "00-overview.md":              "Обзор"

@@ -4,6 +4,8 @@ set -e
 PROJECT_DIR="$(basename "$(pwd)")"
 echo "Building $PROJECT_DIR PHAR..."
 
+make version
+
 IMAGE_NAME="phar-builder-markvault"
 
 # ---- Read box.json ----

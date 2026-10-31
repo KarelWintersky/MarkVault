@@ -11,6 +11,7 @@ use App\Presenter\PresenterInterface;
 use App\Render\Content;
 use App\Render\Markdown;
 use App\Render\Navigation;
+use App\Units\Assets;
 use App\Units\Path;
 use App\Units\Request;
 
@@ -28,6 +29,7 @@ final class Application
     public Content $content;
     public Auth $auth;
     public Request $request;
+    public Assets $assets;
 
     /**
      * Presenter Factory
@@ -52,6 +54,7 @@ final class Application
         $this->request = $request ?? Request::fromGlobals();
         $this->config = Config::load($baseDir, $configFile);
         $this->content = new Content($this->config, $this->contentDir());
+        $this->assets = new Assets($this->config, $this->contentDir());
         $this->auth = new Auth($this->config, $this->request);
 
         $this->templateDir = dirname(__DIR__) . '/templates';
@@ -74,7 +77,46 @@ final class Application
      */
     public function run(): void
     {
+        // Ассеты отдаются до рендера: запрос «/assets/…» не должен
+        // превращаться в страницу книги. Если файла нет — честный 404,
+        // иначе браузер получил бы HTML с кодом 200 вместо картинки.
+        if ($this->serveAsset($this->request->uriPath())) {
+            return;
+        }
+
         echo $this->handle();
+    }
+
+    /**
+     * Отдаёт файл из смонтированного каталога ассетов.
+     *
+     * @return bool true — запрос обработан (ответ уже отправлен), false —
+     *              это не ассет, дальше работает обычный рендер.
+     */
+    private function serveAsset(string $urlPath): bool
+    {
+        if ($urlPath === '' || !$this->assets->handles($urlPath)) {
+            return false;
+        }
+
+        $file = $this->assets->resolve($urlPath);
+
+        if ($file === null) {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'Not Found';
+
+            return true;
+        }
+
+        header('Content-Type: ' . Assets::mimeType($file));
+        header('Content-Length: ' . filesize($file));
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: public, max-age=2592000, immutable');
+
+        readfile($file);
+
+        return true;
     }
 
     /**
