@@ -322,7 +322,7 @@
         <?php endif; ?>
     </ul>
 </nav>
-<button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
+<button class="theme-toggle" id="themeToggle" title="Переключить тему"><?= $defaultTheme === 'light' ? '🌙' : '☀️' ?></button>
 <main>
     <?= $debugInfo ?>
     <?php if ($current): ?>
@@ -518,7 +518,8 @@
                     root.setProperty(CSS_MAP[key], value);
                 }
             }
-            toggle.textContent = theme === 'light' ? '☀️' : '🌙';
+            // Иконка — целевая тема: луна в светлой, солнце в тёмной.
+            toggle.textContent = theme === 'light' ? '🌙' : '☀️';
             localStorage.setItem('theme', theme);
         }
 
@@ -526,8 +527,8 @@
         applyTheme(saved === 'light' || saved === 'dark' ? saved : THEME_CONFIG.default);
 
         toggle.addEventListener('click', () => {
-            const next = toggle.textContent === '🌙' ? 'light' : 'dark';
-            applyTheme(next);
+            const current = document.documentElement.getAttribute('data-theme');
+            applyTheme(current === 'light' ? 'dark' : 'light');
         });
     })();
 </script>

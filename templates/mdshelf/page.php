@@ -119,10 +119,13 @@
             border-radius: 1px;
         }
         .icon-button svg { display: block; }
-        .sun-icon { display: none; }
-        .moon-icon { display: block; }
-        html[data-theme="light"] .sun-icon { display: block; }
-        html[data-theme="light"] .moon-icon { display: none; }
+        /* Показываем иконку целевой темы: в тёмной — солнце (переключит
+           на светлую), в светлой — луну. Селекторы с .theme-toggle нужны,
+           чтобы перебить display: block у .icon-button svg. */
+        .theme-toggle .sun-icon { display: block; }
+        .theme-toggle .moon-icon { display: none; }
+        html[data-theme="light"] .theme-toggle .sun-icon { display: none; }
+        html[data-theme="light"] .theme-toggle .moon-icon { display: block; }
         @media (min-width: 1100px) { .nav-toggle { display: none; } }
 
         /* ─── Шапка ────────────────────────────────────────────────────── */
