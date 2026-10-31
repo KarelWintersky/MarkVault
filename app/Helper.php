@@ -66,7 +66,12 @@ final class Helper
 
     /**
      * Путь к конфигу по убыванию приоритета: --config=, MARKVAULT_CONFIG,
-     * getenv(). null — конфиг не задан, берёмся за лежащий рядом с приложением.
+     * getenv(), затем config.yaml в корне сайта (DOCUMENT_ROOT). null —
+     * конфиг не задан, берёмся за лежащий рядом с приложением.
+     *
+     * Проверка DOCUMENT_ROOT — страховка для запуска PHAR под nginx/FPM:
+     * если fastcgi_param с MARKVAULT_CONFIG не дошёл, конфиг всё равно
+     * найдётся рядом с документами книги, а не внутри phar://.
      */
     public static function configFile(): ?string
     {
@@ -76,7 +81,21 @@ final class Helper
 
         $fromEnv = $_SERVER[self::ENV_CONFIG] ?? getenv(self::ENV_CONFIG);
 
-        return is_string($fromEnv) && trim($fromEnv) !== '' ? trim($fromEnv) : null;
+        if (is_string($fromEnv) && trim($fromEnv) !== '') {
+            return trim($fromEnv);
+        }
+
+        $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? null;
+
+        if (is_string($documentRoot) && $documentRoot !== '') {
+            $candidate = rtrim($documentRoot, '/\\') . '/' . Config::FILE_NAME;
+
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -246,18 +246,61 @@ Box 4.5.0), ставит зависимости, кладёт `vendor/_version` 
 - `index.php` рядом с собранным `markvault.phar` запускает именно phar, а не
   рабочее дерево, — так проверяют сборку, не заглядывая внутрь.
 
-## Развёртывание
+## Развёртывание, необходимый и достаточный NGINX-конфиг
 
-Исполняемый файл — сам PHAR, конфиг приходит параметром:
+ТРЕБОВАНИЕ К PHP-FPM, без него будет 403
+FPM по умолчанию исполняет только .php и отвечает на .phar отказом («Access denied»). Разрешить это нужно в пуле:
 
-```nginx
-location ~ \.php$ {
-    include fastcgi_params;
-    fastcgi_param SCRIPT_FILENAME /usr/local/bin/markvault.phar;
-    fastcgi_param MARKVAULT_CONFIG /var/www.books/Книга/config.yaml;
-    fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+`/etc/php82/php-fpm.d/www.conf` (или аналогичном): `security.limit_extensions = .php .phar`
+
+А потом перезапустить PHP-FPM сервис: `sudo systemctl restart php82-fpm` (или аналогично)
+
+```
+server {
+    listen      80;
+    server_name cornflower.book.local;
+
+    access_log  /var/log/nginx/book.access.log;
+    error_log   /var/log/nginx/book.error.log;
+
+    # Указывать на каталог с файлами MarkVault не обязательно, можно указать путь к контенту:
+    root        /opt/MarkVault/Book.Cornflower;
+
+    location / {
+        include        fastcgi_params;
+
+        # Исполняемый файл — сам PHAR: он уже содержит и app/, и vendor/, и
+        # подключает себя сам. Путь передаётся как есть, без
+        # $fastcgi_script_name: подстановка индекса дала бы FPM имя .php
+        # вместо .phar, и тот отказал бы на проверке расширений.
+        #
+        # index.php из этого же каталога в качестве SCRIPT_FILENAME не
+        # годится: он лишь запустил бы лежащий рядом phar вторым шагом.
+        fastcgi_param  SCRIPT_FILENAME   /opt/MarkVault/markvault.phar;
+
+        # Конфиг приходит параметром — код лежит в каталоге проекта, а данные
+        # в /var/www.books, и относительный content.path разрешается от
+        # каталога конфига, поэтому "./content" ищется рядом с config.yaml.
+        #
+        # Свой fastcgi_param обязан идти ПОСЛЕ include fastcgi_params:
+        # иначе значения перекроются общими из fastcgi.conf.
+        fastcgi_param  MARKVAULT_CONFIG  /opt/MarkVault/Book.Cornflower/config.yaml;
+
+        # php-handler-8 — upstream из /etc/nginx/conf.d/upstream-php-handler-8.conf,
+        # то есть unix:/run/php82-fpm/php-fpm.sock. MarkVault требует PHP 8.2+
+        fastcgi_pass   php-handler-8;
+    }
+
+    # Никакие больше локейшены обслуживать средствами NGINX НЕ НАДО. Точка входа - движок,
+    # он сам отдаст все картинки, иконки, ассеты итд.
+
+    location favicon.* {
+        access_log  off;
+        log_not_found       off;
+    }
 }
 ```
+
 
 Свои `fastcgi_param` обязаны идти **после** `include fastcgi_params`, иначе
 перекроются значения из общего файла. Путь из `SCRIPT_FILENAME` передаётся
